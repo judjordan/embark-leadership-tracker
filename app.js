@@ -25,6 +25,90 @@
   var KNOWN_PEOPLE = ["Jud", "Crystal Craig", "Jeremy"];
   var IDENTITY_KEY = "elt_identity_v1";
 
+  var SPIRITUAL_LEVELS = [
+    { level: "L1", name: "Not Interested", body:
+      "<p>The not interested person is someone who either has no real knowledge of and belief in Jesus or was once connected to church and, for whatever reason, has since walked away (de-churched). They are not currently seeking Jesus or looking to approach faith. This person is most likely to show up on Christmas or Easter, most often dragged by a family member. In short, they have no real spiritual interest.</p>" },
+    { level: "L2", name: "Spiritually Curious / Seeking", body:
+      "<p>The seeker is a person who senses that “something” is missing from their life and does not know what it is. Usually a felt need such as loneliness, anxiety, a broken relationship, marriage problems, or any number of other things is the cause of this “missing something” feeling. Although they may not yet be asking about God, they are open to Him, wondering if He might be the answer. Typically, these people are brought into the church by someone who knows them and has what they want. In short, we believe the Holy Spirit is stirring in their souls drawing them to Him.</p>" },
+    { level: "L3", name: "Believer", body:
+      "<p>A believer is someone who has responded to the movement of the Holy Spirit in their heart and has professed Jesus as Savior. If a level 2 “seeker” senses something is missing from their life and is wondering if it is God, the believer knows it is God and now professes Him to be true. This professed response is a line crossed and only happens from experiencing the Holy Spirit, not simply mentally assenting to it. In the immediate aftermath, new believers are excited, spiritually hungry, and wanting more of Jesus, His way and so much more. These folks now need the basics of faith to put words to what they are experiencing.</p><p>There is one warning for the believer however. If the believer is not fed with the basics of faith, they will quickly stall and fall away never experiencing real joy and life in Jesus.</p>" },
+    { level: "L4", name: "Maturing", body:
+      "<p>A maturing person is someone whose heart is oriented toward Jesus and is actively pursuing Him. They know the basics of faith, they are hungry for God’s ways, open to being challenged and allowing the Word to change their daily life. They are not just accumulating head knowledge — their thinking, acting and speaking are different and others can see it. They are in community with others, show evidence of a changed life and can mark spiritual growth from year to year. In short, they can be known in 7 ways:</p>" +
+      "<ul><li>They initiate — they stop waiting to be fed and seek it on their own, fully engaging feeding themselves.</li>" +
+      "<li>They get uncomfortable in the right ways — they experience conviction, have hard conversations, are willing to engage sin and experience struggle.</li>" +
+      "<li>They make different decisions concerning money, relationships, and their time.</li>" +
+      "<li>They can name what God is doing in them — when asked, they have a specific answer, not just “good” or “fine.”</li>" +
+      "<li>They talk differently — God’s activity shows up in their everyday language.</li>" +
+      "<li>They start thinking about others — their orientation begins to shift outward and they want others to experience what they experience.</li>" +
+      "<li>They can mark spiritual growth and depth from year to year.</li></ul>" +
+      "<p>People that are maturing are both group attendees and group leaders.</p>" },
+    { level: "L5", name: "Disciple-Maker", body:
+      "<p>A disciple-maker is someone who knows how to effectively feed themselves, has habitualized the spiritual disciplines, and is actively helping Level 2s, 3s, and 4s grow deeper. They cannot help but bring others along — for it is not an assignment, it is who they are. They are others-focused by default, feel a sense of responsibility for others’ spiritual growth, and are compelled to do something about it. They often meet with others regularly, either leading a group or doing 1-on-1 discipleship.</p>" }
+  ];
+
+  var QUAD_SPIRITUAL_LEVELS = [
+    { level: "L2", name: "Seeking", body: "Senses something is missing. Open to God, not yet professing faith." },
+    { level: "L3", name: "Believer", body: "Responded to Jesus. Excited and hungry. Needs basics of faith or stalls." },
+    { level: "L4", name: "Maturing", body: "Self-feeding, visibly living out faith, initiates for more. Marks growth year over year." },
+    { level: "L5", name: "Disciple-maker", body: "Actively grows L2-4s. Others-focused by default." }
+  ];
+  var QUAD_LEADERSHIP_LEVELS = [
+    { level: "1", name: "Follows", body: "Does assigned work reliably. Needs some supervision." },
+    { level: "2", name: "Owns a task", body: "On a team, performs their job or task without supervision." },
+    { level: "3", name: "Leads a team", body: "Owns outcomes. Recruits for their team. Requires little supervision on running their team." },
+    { level: "4", name: "Leads teams", body: "Invites others onto their team, trains and takes ownership of them." },
+    { level: "5", name: "Leads leaders", body: "Identifies, develops and leads team leaders. They lead leaders." }
+  ];
+
+  var FIVE_IS_INFO = [
+    { key: "identify", name: "1 · Identify", objective: "Spot potential leaders and match them to open positions.", body:
+      "<p>Search two pools of candidates:</p>" +
+      "<ul><li><b>Potential leaders</b> — people who show leadership potential but are still raw; you see more in them than they see in themselves.</li>" +
+      "<li><b>Existing leaders</b> — people who arrive with a solid faith life and leadership skills already in place.</li></ul>" +
+      "<p>An Embark leader is someone who:</p>" +
+      "<ul><li>Has the desire and ability (or potential ability) to lead a ministry area or team</li>" +
+      "<li>Will assume and can be trusted with responsibility for that area</li>" +
+      "<li>Values both relationships and results</li>" +
+      "<li>Is willing to be held accountable for results</li></ul>" +
+      "<p>Key characteristics to look for:</p>" +
+      "<ul><li><b>Initiative</b> — acts or takes charge before others do</li>" +
+      "<li><b>Hungry</b> to grow spiritually and as a leader</li>" +
+      "<li><b>Reliable and consistent</b> — demonstrates follow-through</li>" +
+      "<li><b>Teachable</b> — receptive to coaching in discipleship, leadership, and ministry</li>" +
+      "<li><b>Ownership</b> — has bought into Embark’s culture</li>" +
+      "<li><b>Authentic</b> — open and honest about struggles</li>" +
+      "<li><b>Relational</b> — friendly, inclusive, gets to know people</li>" +
+      "<li><b>Positive attitude</b> — chooses joy</li>" +
+      "<li><b>Presence</b> — self-led, secure, carries themselves with authority</li></ul>" },
+    { key: "investigate", name: "2 · Investigate", objective: "Assess the candidate’s interest and determine whether to invite them into leadership.", body:
+      "<p>Get to know the candidate through conversation and interviews. You are looking for:</p>" +
+      "<ul><li>Red, yellow, and green flags regarding culture fit and personal agenda</li>" +
+      "<li>Their passions and areas of interest</li>" +
+      "<li>Whether they genuinely want to be in leadership</li>" +
+      "<li>Relational connection and trust</li></ul>" +
+      "<p>Interview questions move from general → narrowing → leadership-focused. If a candidate is interested and you believe they can do it, present open positions and explain the duties, expectations, and the full 5I process. If they are not a fit, point them clearly to their next step.</p>" },
+    { key: "integrate", name: "3 · Integrate", objective: "Train the leader for the role.", body:
+      "<p>Training is hands-on and structured, tailored to the level of leadership. The core training sequence is:</p>" +
+      "<ol><li>I do, you watch</li><li>I do, you help</li><li>You do, I help</li><li>You do, I watch</li><li>You do with another</li></ol>" +
+      "<p>Format varies by level: weekly meetings + AARs for Staff; simplified “I do / you do” for Ministry Area leaders; 1-hour meeting for Serve Team leaders; formal sessions with 1-on-1 follow-up for Group Leaders.</p>" },
+    { key: "install", name: "4 · Install", objective: "Formally confer authority and full responsibility on the leader.", body:
+      "<p>Installation happens publicly — in front of the team, congregation, or relevant group — so others recognize the leader’s authority. It takes place after the leader has already begun working in the role, confirming they can do the job.</p>" +
+      "<p>Commissioning order:</p>" +
+      "<ol><li>Gather the team, congregation, or relevant group</li>" +
+      "<li>Explain what you are doing — you are installing this person as the leader</li>" +
+      "<li>Choose and read a Scripture</li>" +
+      "<li>Explain their job description and responsibilities to the group</li>" +
+      "<li>Have the group lay hands on them</li>" +
+      "<li>Pray a short commissioning prayer</li></ol>" },
+    { key: "invest", name: "5 · Invest", objective: "Continuously grow, assess, and retain the leader.", body:
+      "<p>Hold regular, scheduled check-ins to assess whether the leader remains Faithful, Available, and Teachable (FAT) and to guard against burnout. The leader should talk 70% of the time; you talk 30%. Ask open-ended questions and resist moving to problem-solving too quickly.</p>" +
+      "<p>Meeting conversation areas:</p>" +
+      "<ul><li><b>Spiritual development</b> — How connected do they feel to God? What is God teaching them? What are they reading?</li>" +
+      "<li><b>Performance feedback</b> — What’s going well / not going well? What goals are they working toward? What resources do they need?</li>" +
+      "<li><b>Personal check-in</b> — How is family, work outside the church, rest, and enjoyment of their role?</li></ul>" +
+      "<p><b>Repeat</b> — once invested in, every leader is invited to do the same with someone else.</p>" }
+  ];
+
   var state = {
     identity: null,
     dbUnavailable: !configOk,
@@ -37,7 +121,11 @@
     noteComposerOpen: false,
     suppressDetailRerender: false,
     formError: "",
-    peopleLoadTimedOut: false
+    peopleLoadTimedOut: false,
+    deleteConfirmOpen: false,
+    deleteError: "",
+    infoTab: "quad",
+    infoOpen: {}
   };
 
   function isAdmin(name) { return (name || "").trim().toLowerCase() === "jud"; }
@@ -183,12 +271,26 @@
     state.view = "detail";
     state.currentPersonId = id;
     state.noteComposerOpen = false;
+    state.deleteConfirmOpen = false;
+    state.deleteError = "";
     render();
     subscribeNotes(id);
   };
   window.openAddForm = function () {
     state.view = "add";
     state.formError = "";
+    render();
+  };
+  window.openInfo = function () {
+    state.view = "info";
+    render();
+  };
+  window.setInfoTab = function (tab) {
+    state.infoTab = tab;
+    render();
+  };
+  window.toggleInfoItem = function (key) {
+    state.infoOpen[key] = !state.infoOpen[key];
     render();
   };
 
@@ -266,6 +368,25 @@
     });
   };
 
+  window.toggleDeleteConfirm = function (open) {
+    state.deleteConfirmOpen = open;
+    state.deleteError = "";
+    render();
+  };
+
+  window.confirmDeletePerson = function (id) {
+    if (!sb) return;
+    sb.from("people").delete().eq("id", id).then(function (res) {
+      if (res.error) {
+        state.deleteError = "Couldn't delete. Try again.";
+        render();
+        return;
+      }
+      if (state.people) state.people = state.people.filter(function (p) { return p.id !== id; });
+      window.goBoard();
+    });
+  };
+
   window.submitAddForm = function () {
     var name = document.getElementById("f-name").value.trim();
     var developer = document.getElementById("f-developer").value.trim();
@@ -314,6 +435,7 @@
     if (state.view === "board") html += renderBoard();
     else if (state.view === "detail") html += renderDetail();
     else if (state.view === "add") html += renderAddForm();
+    else if (state.view === "info") html += renderInfo();
     app.innerHTML = html;
   }
 
@@ -339,7 +461,7 @@
     return "" +
       '<header class="topbar"><div class="topbar-row">' +
       '<h1>Embark <span>Leaders</span></h1>' +
-      '<div class="identity-chip"><b>' + esc(state.identity.name) + "</b>" + (isAdm ? " · admin" : "") + '<button class="switch-link" onclick="switchIdentity()">Switch</button></div>' +
+      '<div class="identity-chip"><button class="switch-link" onclick="openInfo()">Guide</button><b>' + esc(state.identity.name) + "</b>" + (isAdm ? " · admin" : "") + '<button class="switch-link" onclick="switchIdentity()">Switch</button></div>' +
       "</div></header>";
   }
 
@@ -444,6 +566,16 @@
     }
     html += "</div>";
 
+    html += '<div class="section danger-section">';
+    if (state.deleteConfirmOpen) {
+      html += '<div class="danger-confirm"><p>Delete ' + esc(p.name) + '? This removes their record and all notes — it can’t be undone.</p>' +
+        '<div class="composer-actions"><button class="btn ghost" onclick="toggleDeleteConfirm(false)">Cancel</button><button class="btn danger" onclick="confirmDeletePerson(' + idJs + ')">Delete person</button></div></div>';
+    } else {
+      html += '<button class="delete-btn" onclick="toggleDeleteConfirm(true)">Delete person</button>';
+    }
+    if (state.deleteError) html += '<div class="error-text">' + esc(state.deleteError) + "</div>";
+    html += "</div>";
+
     html += "</div>";
     return html;
   }
@@ -470,6 +602,63 @@
 
     if (state.formError) html += '<div class="error-text">' + esc(state.formError) + "</div>";
     html += '<div class="form-actions"><button class="btn secondary block" onclick="goBoard()">Cancel</button><button class="btn block" onclick="submitAddForm()">Add person</button></div>';
+    html += "</div>";
+    return html;
+  }
+
+  function accordion(items, openMap, keyField, nameField, extraLabelHtml) {
+    return '<div class="accordion">' + items.map(function (item) {
+      var key = item[keyField];
+      var open = !!openMap[key];
+      return '<div class="accordion-item">' +
+        '<button class="accordion-head" onclick="toggleInfoItem(' + qid(key) + ')">' +
+        '<span>' + esc(item[nameField]) + "</span>" +
+        (extraLabelHtml ? extraLabelHtml(item) : "") +
+        '<span class="accordion-chevron">' + (open ? "▾" : "▸") + "</span>" +
+        "</button>" +
+        (open ? '<div class="accordion-body">' + (item.objective ? "<p class=\"objective\"><b>Objective:</b> " + esc(item.objective) + "</p>" : "") + item.body + "</div>" : "") +
+        "</div>";
+    }).join("") + "</div>";
+  }
+
+  function renderInfo() {
+    var html = '<div class="detail info-page">';
+    html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Board</button></div>';
+    html += '<h2 class="display" style="margin:6px 0 14px;">Leadership Development Guide</h2>';
+
+    html += '<div class="info-tabs">' +
+      ["quad", "levels", "fivei"].map(function (t) {
+        var labels = { quad: "OPS / SOPS Quad", levels: "Spiritual Levels", fivei: "The 5Is" };
+        return '<button class="info-tab' + (state.infoTab === t ? " active" : "") + '" onclick="setInfoTab(' + qid(t) + ')">' + labels[t] + "</button>";
+      }).join("") + "</div>";
+
+    if (state.infoTab === "quad") {
+      html += '<div class="info-section">' +
+        "<p>Spiritual Operations develops <b>developers</b> who grow people spiritually. Operations develops <b>leaders</b> who run the work. At level 4 or above on either axis, the person is reproducing another leader or developer.</p>" +
+        '<div class="quad-wrap">' +
+        '<div class="quad-axis-label quad-axis-y">Spiritual Depth <span>(Spiritual Operations — Developer)</span></div>' +
+        '<div class="quad-grid">' +
+        '<div class="quad-cell quad-developing">Developing</div>' +
+        '<div class="quad-cell quad-both">Both Developing<br>and Leading</div>' +
+        '<div class="quad-cell quad-growing">Growing</div>' +
+        '<div class="quad-cell quad-leading">Leading</div>' +
+        "</div>" +
+        '<div class="quad-axis-label quad-axis-x">Leadership Ability <span>(Operations — Leader)</span></div>' +
+        "</div>" +
+        '<div class="quad-legends">' +
+        '<div class="quad-legend"><div class="section-label">Spiritual levels</div>' +
+        QUAD_SPIRITUAL_LEVELS.map(function (l) { return '<div class="quad-legend-item"><b>' + l.level + " · " + esc(l.name) + "</b><span>" + esc(l.body) + "</span></div>"; }).join("") +
+        "</div>" +
+        '<div class="quad-legend"><div class="section-label">Leadership ability</div>' +
+        QUAD_LEADERSHIP_LEVELS.map(function (l) { return '<div class="quad-legend-item"><b>' + l.level + " · " + esc(l.name) + "</b><span>" + esc(l.body) + "</span></div>"; }).join("") +
+        "</div></div>" +
+        "</div>";
+    } else if (state.infoTab === "levels") {
+      html += '<div class="info-section">' + accordion(SPIRITUAL_LEVELS, state.infoOpen, "level", "name", function (item) { return '<span class="accordion-badge">' + item.level + "</span>"; }) + "</div>";
+    } else {
+      html += '<div class="info-section">' + accordion(FIVE_IS_INFO, state.infoOpen, "key", "name") + "</div>";
+    }
+
     html += "</div>";
     return html;
   }

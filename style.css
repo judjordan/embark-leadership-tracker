@@ -191,6 +191,15 @@ select.chip-select{
 }
 .composer-actions{display:flex; gap:8px; justify-content:flex-end;}
 
+/* ---------- delete person ---------- */
+.danger-section{margin-top:36px; padding-top:18px; border-top:1px solid var(--border);}
+.delete-btn{
+  background:none; border:none; color:var(--danger); font-size:13.5px; font-weight:600; cursor:pointer; padding:6px 0;
+}
+.danger-confirm{background:var(--danger-soft); border:1px solid var(--danger); border-radius:12px; padding:14px 16px;}
+.danger-confirm p{margin:0 0 12px; font-size:13.5px; line-height:1.5; color:var(--ink);}
+.btn.danger{background:var(--danger); color:#fff;}
+
 /* ---------- add person form ---------- */
 .form-wrap{padding:6px 18px 60px;}
 .form-field{margin-top:18px;}
@@ -213,5 +222,50 @@ select.chip-select{
 .form-actions{margin-top:28px; display:flex; gap:10px;}
 
 .banner{margin:14px 18px 0; padding:12px 14px; border-radius:12px; background:var(--warn-soft); color:var(--ink); font-size:13px; line-height:1.5; border:1px solid var(--border);}
+
+/* ---------- info / guide ---------- */
+.info-page{padding-bottom:60px;}
+.info-tabs{display:flex; gap:6px; padding:2px 0 18px; overflow-x:auto;}
+.info-tab{
+  flex:none; padding:9px 14px; border-radius:999px; border:1px solid var(--border); background:var(--surface);
+  color:var(--muted); font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap;
+}
+.info-tab.active{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+.info-section p{font-size:14.5px; line-height:1.6; margin:0 0 12px; color:var(--ink);}
+.info-section ul, .info-section ol{margin:0 0 14px; padding-left:20px; font-size:14.5px; line-height:1.6; color:var(--ink);}
+.info-section li{margin-bottom:6px;}
+.info-section .objective{color:var(--muted);}
+
+.quad-wrap{display:grid; grid-template-columns:auto 1fr; grid-template-rows:1fr auto; gap:8px 10px; margin:18px 0;}
+.quad-axis-label{font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;}
+.quad-axis-label span{display:block; font-weight:500; text-transform:none; letter-spacing:0; font-size:11px; margin-top:2px;}
+.quad-axis-y{writing-mode:vertical-rl; transform:rotate(180deg); text-align:center; grid-row:1; grid-column:1;}
+.quad-axis-x{grid-row:2; grid-column:2; text-align:center;}
+.quad-grid{
+  grid-row:1; grid-column:2; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:3px;
+  border-radius:12px; overflow:hidden; aspect-ratio:1.15; min-height:180px;
+}
+.quad-cell{display:flex; align-items:center; justify-content:center; text-align:center; font-weight:700; font-size:13.5px; padding:10px; line-height:1.3;}
+.quad-developing{background:var(--accent-soft); color:var(--ink); order:1;}
+.quad-both{background:var(--accent); color:var(--accent-ink); order:2;}
+.quad-growing{background:var(--off-soft); color:var(--ink); order:3;}
+.quad-leading{background:var(--warn-soft); color:var(--ink); order:4;}
+
+.quad-legends{display:flex; flex-direction:column; gap:18px; margin-top:8px;}
+.quad-legend-item{padding:8px 0; border-bottom:1px solid var(--border); font-size:13.5px; display:flex; flex-direction:column; gap:2px;}
+.quad-legend-item:last-child{border-bottom:none;}
+.quad-legend-item b{font-size:13.5px;}
+.quad-legend-item span{color:var(--muted); line-height:1.45;}
+
+.accordion{display:flex; flex-direction:column; gap:8px;}
+.accordion-item{border:1px solid var(--border); border-radius:12px; background:var(--surface); overflow:hidden;}
+.accordion-head{
+  width:100%; display:flex; align-items:center; gap:8px; padding:14px 15px; background:none; border:none;
+  font-size:15px; font-weight:600; color:var(--ink); cursor:pointer; text-align:left;
+}
+.accordion-head span:first-child{flex:1;}
+.accordion-badge{font-size:11px; font-weight:700; color:var(--accent); background:var(--accent-soft); padding:2px 8px; border-radius:999px;}
+.accordion-chevron{color:var(--muted); font-size:13px;}
+.accordion-body{padding:0 15px 16px; border-top:1px solid var(--border); padding-top:12px;}
 
 @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
