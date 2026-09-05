@@ -47,8 +47,14 @@
     });
   }
   function fmtDate(d) {
-    try { return new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }); }
+    // Notes carry a plain calendar date (no time). Parse and format it in
+    // UTC on both ends so it reads the same regardless of the viewer's
+    // timezone, instead of shifting a day depending on local offset.
+    try { return new Date(d + "T00:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }); }
     catch (e) { return d; }
+  }
+  function localDateStr(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
   function qid(id) { return JSON.stringify(id).replace(/"/g, "&quot;"); }
 
@@ -249,7 +255,7 @@
     var text = ta.value.trim();
     var author = state.identity ? state.identity.name : "Unknown";
     var now = new Date();
-    var noteRow = { person_id: personId, author: author, note_date: now.toISOString().slice(0, 10), body: text };
+    var noteRow = { person_id: personId, author: author, note_date: localDateStr(now), body: text };
     sb.from("notes").insert(noteRow).select().single().then(function (res) {
       if (!res.error && res.data) {
         if (!state.currentNotes) state.currentNotes = [];
