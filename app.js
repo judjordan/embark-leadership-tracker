@@ -4,8 +4,8 @@
   // Fill these in from Supabase Settings -> API. The anon key is safe to
   // ship client-side; access is governed by the RLS policies in the
   // project's SQL, not by keeping this secret.
-  var SUPABASE_URL = "REPLACE_WITH_SUPABASE_URL";
-  var SUPABASE_ANON_KEY = "REPLACE_WITH_SUPABASE_ANON_KEY";
+  var SUPABASE_URL = "https://reoakjuipgdlggxtjtqg.supabase.co";
+  var SUPABASE_ANON_KEY = "sb_publishable_rmQtGBLHZq3TGm_wGDxGlg_fwrLjV08";
 
   var sb = null;
   var configOk = SUPABASE_URL.indexOf("REPLACE_WITH") !== 0 && SUPABASE_ANON_KEY.indexOf("REPLACE_WITH") !== 0;
