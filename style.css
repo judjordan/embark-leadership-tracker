@@ -49,9 +49,14 @@ header.topbar{
 .topbar-row{display:flex; align-items:baseline; justify-content:space-between; gap:12px;}
 .topbar-row h1{font-size:20px; font-weight:600; margin:0; letter-spacing:.2px;}
 .topbar-row h1 span{color:var(--accent);}
-.identity-chip{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); white-space:nowrap;}
+.identity-chip{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); white-space:nowrap;}
 .identity-chip b{color:var(--ink); font-weight:600;}
 .switch-link{background:none; border:none; color:var(--accent); font-size:12.5px; font-weight:600; cursor:pointer; padding:2px 0; text-decoration:underline; text-underline-offset:2px;}
+.nav-btn{
+  display:inline-flex; align-items:center; gap:5px; padding:7px 12px; border-radius:999px;
+  border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:12.5px; font-weight:600; cursor:pointer;
+}
+.nav-btn:active{background:var(--surface-2);}
 
 /* ---------- generic buttons ---------- */
 .btn{
@@ -74,11 +79,8 @@ header.topbar{
 }
 .fab:active{transform:scale(.94);}
 
-/* ---------- identity gate ---------- */
-.gate{position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 24px;}
-.gate-card{max-width:360px; width:100%; text-align:center;}
-.gate-card h1{font-size:28px; margin:0 0 6px;}
-.gate-card p{color:var(--muted); font-size:14px; margin:0 0 28px; line-height:1.5;}
+/* ---------- landing (developer picker) ---------- */
+.landing{padding:28px 18px 40px; max-width:400px; margin:0 auto;}
 .gate-options{display:flex; flex-direction:column; gap:10px;}
 .gate-btn{
   width:100%; text-align:left; padding:14px 16px; border-radius:12px; border:1px solid var(--border);
@@ -86,9 +88,18 @@ header.topbar{
   display:flex; align-items:center; justify-content:space-between;
 }
 .gate-btn:active{background:var(--surface-2);}
-.gate-btn small{color:var(--muted); font-weight:500; font-size:12px;}
 .gate-other{margin-top:6px; display:flex; gap:8px;}
 .gate-other input{flex:1; padding:12px 14px; border-radius:12px; border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:15px;}
+
+/* ---------- developers management ---------- */
+.dev-list{display:flex; flex-direction:column; margin-top:6px;}
+.dev-row{display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--border);}
+.dev-row:last-child{border-bottom:none;}
+.dev-name{font-size:15.5px; font-weight:600;}
+.dev-lock{font-size:11px; color:var(--muted); font-weight:500;}
+.dev-delete{background:none; border:none; color:var(--danger); font-size:13px; font-weight:600; cursor:pointer; padding:4px 6px;}
+.dev-add-row{display:flex; gap:8px; margin-top:16px;}
+.dev-add-row input{flex:1; padding:11px 13px; border-radius:11px; border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:14.5px;}
 
 /* ---------- board ---------- */
 .board-wrap{flex:1; overflow-x:auto; scroll-snap-type:x mandatory; display:flex; gap:14px; padding:16px; -webkit-overflow-scrolling:touch;}

@@ -22,7 +22,6 @@
     Integrate: "var(--stage-integrate)", Install: "var(--stage-install)", Invest: "var(--stage-invest)"
   };
   var EDU_FIELDS = [["sl1", "SL1.0"], ["freedom", "Freedom"], ["theology", "Theology"], ["htgg", "HTGG"]];
-  var KNOWN_PEOPLE = ["Jud", "Crystal Craig", "Jeremy"];
   var IDENTITY_KEY = "elt_identity_v1";
 
   var SPIRITUAL_LEVELS = [
@@ -114,7 +113,10 @@
     dbUnavailable: !configOk,
     people: null,
     peopleChannel: null,
-    view: "board",
+    developers: null,
+    developersChannel: null,
+    view: "landing",
+    boardScope: "mine",
     currentPersonId: null,
     currentNotes: null,
     notesChannel: null,
@@ -124,8 +126,9 @@
     peopleLoadTimedOut: false,
     deleteConfirmOpen: false,
     deleteError: "",
-    infoTab: "quad",
-    infoOpen: {}
+    newDeveloperError: "",
+    guideTab: "quad",
+    guideOpen: {}
   };
 
   function isAdmin(name) { return (name || "").trim().toLowerCase() === "jud"; }
@@ -169,8 +172,10 @@
   function saveIdentity(name) {
     state.identity = { name: name };
     try { localStorage.setItem(IDENTITY_KEY, JSON.stringify(state.identity)); } catch (e) {}
+    ensureDeveloper(name);
+    state.view = "board";
+    state.boardScope = "mine";
     render();
-    subscribePeople();
   }
   window.chooseIdentity = function (name) { if (name && name.trim()) saveIdentity(name.trim()); };
   window.chooseIdentityOther = function () {
@@ -180,17 +185,11 @@
   window.switchIdentity = function () {
     state.identity = null;
     try { localStorage.removeItem(IDENTITY_KEY); } catch (e) {}
-    unsubscribeAll();
-    state.view = "board";
+    state.view = "landing";
     render();
   };
 
   // ---------------- data: people ----------------
-  function unsubscribeAll() {
-    if (state.peopleChannel) { sb.removeChannel(state.peopleChannel); state.peopleChannel = null; }
-    if (state.notesChannel) { sb.removeChannel(state.notesChannel); state.notesChannel = null; }
-  }
-
   function refetchPeople() {
     if (!sb) return;
     sb.from("people").select("*").order("created_at", { ascending: true }).then(function (res) {
@@ -219,13 +218,40 @@
     setTimeout(function () { clearTimeout(timeoutId); }, 8100);
   }
 
+  // ---------------- data: developers ----------------
+  function refetchDevelopers() {
+    if (!sb) return;
+    sb.from("developers").select("*").order("created_at", { ascending: true }).then(function (res) {
+      if (res.error) return;
+      state.developers = res.data;
+      render();
+    });
+  }
+
+  function subscribeDevelopers() {
+    if (!sb || state.developersChannel) return;
+    refetchDevelopers();
+    try {
+      state.developersChannel = sb.channel("developers-changes")
+        .on("postgres_changes", { event: "*", schema: "public", table: "developers" }, refetchDevelopers)
+        .subscribe();
+    } catch (e) {}
+  }
+
+  function ensureDeveloper(name) {
+    if (!sb || !name) return;
+    var exists = (state.developers || []).some(function (d) { return d.name.trim().toLowerCase() === name.trim().toLowerCase(); });
+    if (exists) return;
+    sb.from("developers").insert({ name: name.trim() }).then(function () {});
+  }
+
   window.retryLoad = function () {
     state.people = null;
     state.peopleLoadTimedOut = false;
     state.dbUnavailable = !configOk;
     render();
-    if (!state.peopleChannel) subscribePeople();
-    else refetchPeople();
+    if (!state.peopleChannel) subscribePeople(); else refetchPeople();
+    if (!state.developersChannel) subscribeDevelopers(); else refetchDevelopers();
   };
 
   function subscribeNotes(personId) {
@@ -247,6 +273,7 @@
 
   function visiblePeople() {
     var list = state.people || [];
+    if (state.boardScope === "all") return list;
     if (!state.identity) return [];
     if (isAdmin(state.identity.name)) return list;
     return list.filter(function (p) { return (p.developer || "").trim().toLowerCase() === state.identity.name.trim().toLowerCase(); });
@@ -267,6 +294,10 @@
     if (state.notesChannel) { sb.removeChannel(state.notesChannel); state.notesChannel = null; }
     render();
   };
+  window.openBoard = function () {
+    state.boardScope = "all";
+    window.goBoard();
+  };
   window.openPerson = function (id) {
     state.view = "detail";
     state.currentPersonId = id;
@@ -281,17 +312,34 @@
     state.formError = "";
     render();
   };
-  window.openInfo = function () {
-    state.view = "info";
+  window.openGuide = function () {
+    state.view = "guide";
     render();
   };
-  window.setInfoTab = function (tab) {
-    state.infoTab = tab;
+  window.openDevelopers = function () {
+    state.view = "developers";
+    state.newDeveloperError = "";
     render();
   };
-  window.toggleInfoItem = function (key) {
-    state.infoOpen[key] = !state.infoOpen[key];
+  window.setGuideTab = function (tab) {
+    state.guideTab = tab;
     render();
+  };
+  window.toggleGuideItem = function (key) {
+    state.guideOpen[key] = !state.guideOpen[key];
+    render();
+  };
+
+  window.addDeveloper = function () {
+    var el = document.getElementById("new-dev-name");
+    var name = el ? el.value.trim() : "";
+    if (!name) return;
+    ensureDeveloper(name);
+    if (el) el.value = "";
+  };
+  window.removeDeveloper = function (id, name) {
+    if (isAdmin(name) || !sb) return;
+    sb.from("developers").delete().eq("id", id).then(function () {});
   };
 
   // ---------------- writes ----------------
@@ -420,6 +468,7 @@
       }
       var localDoc = rowToPerson(res.data);
       state.people = (state.people || []).concat([localDoc]);
+      ensureDeveloper(developer);
       window.openPerson(localDoc.id);
     });
   };
@@ -427,42 +476,48 @@
   // ---------------- render ----------------
   function render() {
     var app = document.getElementById("app");
-    if (!state.identity) { app.innerHTML = renderGate(); return; }
     var html = renderHeader();
     if (state.dbUnavailable) {
       html += '<div class="banner">Shared data isn’t available right now. Check your connection, or make sure the app’s Supabase keys are configured.</div>';
     }
-    if (state.view === "board") html += renderBoard();
+    if (state.view === "landing") html += renderLanding();
+    else if (state.view === "board") html += renderBoard();
     else if (state.view === "detail") html += renderDetail();
     else if (state.view === "add") html += renderAddForm();
-    else if (state.view === "info") html += renderInfo();
+    else if (state.view === "guide") html += renderGuide();
+    else if (state.view === "developers") html += renderDevelopers();
     app.innerHTML = html;
   }
 
-  function renderGate() {
+  function renderHeader() {
+    var navButtons = '<button class="nav-btn" onclick="openBoard()"><span aria-hidden="true">📋</span> Board</button>' +
+      '<button class="nav-btn" onclick="openGuide()"><span aria-hidden="true">📖</span> Guide</button>';
+    var idBit = state.identity
+      ? '<b>' + esc(state.identity.name) + '</b><button class="switch-link" onclick="switchIdentity()">Switch</button>'
+      : "";
     return "" +
-      '<div class="gate"><div class="gate-card">' +
-      '<h1 class="display">Embark Leadership<br><span style="color:var(--accent)">Tracker</span></h1>' +
-      '<p>Who’s using it right now? This sets who your notes are stamped with and which people you can edit.</p>' +
+      '<header class="topbar"><div class="topbar-row">' +
+      '<h1>Embark <span>Leaders</span></h1>' +
+      '<div class="identity-chip">' + navButtons + idBit + "</div>" +
+      "</div></header>";
+  }
+
+  function renderLanding() {
+    var names = (state.developers || []).map(function (d) { return d.name; });
+    return "" +
+      '<div class="landing">' +
+      '<h2 class="display" style="margin:0 0 4px;">Who’s this?</h2>' +
+      '<p style="font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.5;">Picking a name sets who your notes are stamped with and which people you can edit.</p>' +
       '<div class="gate-options">' +
-      KNOWN_PEOPLE.map(function (n) {
-        return '<button class="gate-btn" onclick="chooseIdentity(' + JSON.stringify(n).replace(/"/g, "&quot;") + ')">' + esc(n) + (isAdmin(n) ? "<small>ADMIN &mdash; sees everyone</small>" : "<small>sees own people</small>") + "</button>";
+      names.map(function (n) {
+        return '<button class="gate-btn" onclick="chooseIdentity(' + qid(n) + ')">' + esc(n) + "</button>";
       }).join("") +
       "</div>" +
       '<div class="gate-other">' +
       '<input id="other-name" type="text" placeholder="Someone else’s name" onkeydown="if(event.key===\'Enter\')chooseIdentityOther()">' +
       '<button class="btn secondary" onclick="chooseIdentityOther()">Go</button>' +
       "</div>" +
-      "</div></div>";
-  }
-
-  function renderHeader() {
-    var isAdm = isAdmin(state.identity.name);
-    return "" +
-      '<header class="topbar"><div class="topbar-row">' +
-      '<h1>Embark <span>Leaders</span></h1>' +
-      '<div class="identity-chip"><button class="switch-link" onclick="openInfo()">Guide</button><b>' + esc(state.identity.name) + "</b>" + (isAdm ? " · admin" : "") + '<button class="switch-link" onclick="switchIdentity()">Switch</button></div>' +
-      "</div></header>";
+      "</div>";
   }
 
   function renderBoard() {
@@ -487,11 +542,11 @@
   }
 
   function renderCard(p) {
-    var isAdm = isAdmin(state.identity.name);
+    var showDev = state.boardScope === "all";
     return '<div class="card" onclick="openPerson(' + qid(p.id) + ')">' +
       '<div class="card-name">' + esc(p.name) + "</div>" +
       '<div class="card-meta"><span class="pill">' + esc(p.track || "") + "</span></div>" +
-      (isAdm ? '<div class="card-dev">' + esc(p.developer || "") + "</div>" : "") +
+      (showDev ? '<div class="card-dev">' + esc(p.developer || "") + "</div>" : "") +
       "</div>";
   }
 
@@ -611,7 +666,7 @@
       var key = item[keyField];
       var open = !!openMap[key];
       return '<div class="accordion-item">' +
-        '<button class="accordion-head" onclick="toggleInfoItem(' + qid(key) + ')">' +
+        '<button class="accordion-head" onclick="toggleGuideItem(' + qid(key) + ')">' +
         '<span>' + esc(item[nameField]) + "</span>" +
         (extraLabelHtml ? extraLabelHtml(item) : "") +
         '<span class="accordion-chevron">' + (open ? "▾" : "▸") + "</span>" +
@@ -621,18 +676,21 @@
     }).join("") + "</div>";
   }
 
-  function renderInfo() {
+  function renderGuide() {
     var html = '<div class="detail info-page">';
     html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Board</button></div>';
-    html += '<h2 class="display" style="margin:6px 0 14px;">Leadership Development Guide</h2>';
+    html += '<div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px;">' +
+      '<h2 class="display" style="margin:6px 0 14px;">Leadership Development Guide</h2>' +
+      '<button class="switch-link" onclick="openDevelopers()" style="white-space:nowrap;">Manage developers →</button>' +
+      "</div>";
 
     html += '<div class="info-tabs">' +
       ["quad", "levels", "fivei"].map(function (t) {
         var labels = { quad: "OPS / SOPS Quad", levels: "Spiritual Levels", fivei: "The 5Is" };
-        return '<button class="info-tab' + (state.infoTab === t ? " active" : "") + '" onclick="setInfoTab(' + qid(t) + ')">' + labels[t] + "</button>";
+        return '<button class="info-tab' + (state.guideTab === t ? " active" : "") + '" onclick="setGuideTab(' + qid(t) + ')">' + labels[t] + "</button>";
       }).join("") + "</div>";
 
-    if (state.infoTab === "quad") {
+    if (state.guideTab === "quad") {
       html += '<div class="info-section">' +
         "<p>Spiritual Operations develops <b>developers</b> who grow people spiritually. Operations develops <b>leaders</b> who run the work. At level 4 or above on either axis, the person is reproducing another leader or developer.</p>" +
         '<div class="quad-wrap">' +
@@ -653,21 +711,46 @@
         QUAD_LEADERSHIP_LEVELS.map(function (l) { return '<div class="quad-legend-item"><b>' + l.level + " · " + esc(l.name) + "</b><span>" + esc(l.body) + "</span></div>"; }).join("") +
         "</div></div>" +
         "</div>";
-    } else if (state.infoTab === "levels") {
-      html += '<div class="info-section">' + accordion(SPIRITUAL_LEVELS, state.infoOpen, "level", "name", function (item) { return '<span class="accordion-badge">' + item.level + "</span>"; }) + "</div>";
+    } else if (state.guideTab === "levels") {
+      html += '<div class="info-section">' + accordion(SPIRITUAL_LEVELS, state.guideOpen, "level", "name", function (item) { return '<span class="accordion-badge">' + item.level + "</span>"; }) + "</div>";
     } else {
-      html += '<div class="info-section">' + accordion(FIVE_IS_INFO, state.infoOpen, "key", "name") + "</div>";
+      html += '<div class="info-section">' + accordion(FIVE_IS_INFO, state.guideOpen, "key", "name") + "</div>";
     }
 
     html += "</div>";
     return html;
   }
 
+  function renderDevelopers() {
+    var list = state.developers || [];
+    var html = '<div class="detail">';
+    html += '<div class="back-row"><button class="back-btn" onclick="openGuide()">← Guide</button></div>';
+    html += '<h2 class="display" style="margin:6px 0 4px;">Developers</h2>';
+    html += '<p style="font-size:13px; color:var(--muted); margin:0 0 8px; line-height:1.5;">Anyone here can be picked on the landing screen. Anyone can add or remove a name.</p>';
+    html += '<div class="dev-list">';
+    if (list.length === 0) {
+      html += '<div class="notes-empty">Loading…</div>';
+    } else {
+      html += list.map(function (d) {
+        return '<div class="dev-row"><span class="dev-name">' + esc(d.name) + "</span>" +
+          (isAdmin(d.name)
+            ? '<span class="dev-lock">Admin · can’t remove</span>'
+            : '<button class="dev-delete" onclick="removeDeveloper(' + qid(d.id) + "," + qid(d.name) + ')">Remove</button>') +
+          "</div>";
+      }).join("");
+    }
+    html += "</div>";
+    html += '<div class="dev-add-row"><input id="new-dev-name" type="text" placeholder="Full name" onkeydown="if(event.key===\'Enter\')addDeveloper()"><button class="btn secondary" onclick="addDeveloper()">Add</button></div>';
+    html += "</div>";
+    return html;
+  }
+
   // ---------------- boot ----------------
   loadIdentity();
+  state.view = state.identity ? "board" : "landing";
   render();
   if (!configOk) { state.dbUnavailable = true; render(); }
-  else if (state.identity) subscribePeople();
+  else { subscribePeople(); subscribeDevelopers(); }
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
