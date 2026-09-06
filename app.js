@@ -390,7 +390,8 @@
     if (!personId) { state.dashNoteError = "Pick a developee first."; render(); return; }
     if (!text) { state.dashNoteError = "Write a note first."; render(); return; }
     if (!sb) return;
-    var author = state.identity ? state.identity.name : "Unknown";
+    var person = findPerson(personId);
+    var author = (person && person.developer) ? person.developer : (state.identity ? state.identity.name : "Unknown");
     var now = new Date();
     var noteRow = { person_id: personId, author: author, note_date: localDateStr(now), body: text };
     sb.from("notes").insert(noteRow).select().single().then(function (res) {
@@ -816,7 +817,7 @@
     function rect(cls, x, y, w, h) { return '<rect class="' + cls + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="6"></rect>'; }
     function tick(x1, y1, x2, y2) { return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" class="quad-axis-line"></line>'; }
 
-    var svg = '<svg class="quad-svg" viewBox="0 0 300 250" role="img" aria-label="Leadership Quad: Spiritual Depth on the vertical axis (L2 to L5), Leadership Ability on the horizontal axis (1 to 5), divided into four quadrants.">';
+    var svg = '<svg class="quad-svg" viewBox="0 0 300 260" role="img" aria-label="Leadership Quad: Spiritual Levels (SOPS) on the vertical axis (L2 to L5), Leadership Ability (OPS) on the horizontal axis (1 to 5), divided into four quadrants.">';
 
     svg += rect("quad-r-developing", L, T, xMid - L - g, yMid - T - g);
     svg += rect("quad-r-both", xMid + g, T, R - xMid - g, yMid - T - g);
@@ -842,8 +843,12 @@
       svg += '<text class="quad-tick-label" x="' + x + '" y="' + (B + 18) + '" text-anchor="middle">' + v + "</text>";
     });
 
-    svg += '<text class="quad-axis-title" x="18" y="' + ((T + B) / 2) + '" text-anchor="middle" transform="rotate(-90 18 ' + ((T + B) / 2) + ')">Spiritual Depth</text>';
-    svg += '<text class="quad-axis-title" x="' + ((L + R) / 2) + '" y="238" text-anchor="middle">Leadership Ability</text>';
+    var yc = (T + B) / 2;
+    svg += '<text class="quad-axis-title" x="18" y="' + yc + '" text-anchor="middle" transform="rotate(-90 18 ' + yc + ')">' +
+      '<tspan x="18" dy="-6">Spiritual Levels</tspan><tspan class="quad-axis-subtitle" x="18" dy="15">SOPS</tspan></text>';
+    var xc = (L + R) / 2;
+    svg += '<text class="quad-axis-title" x="' + xc + '" y="232" text-anchor="middle">' +
+      '<tspan x="' + xc + '" dy="0">Leadership Ability</tspan><tspan class="quad-axis-subtitle" x="' + xc + '" dy="15">OPS</tspan></text>';
 
     svg += "</svg>";
     return svg;
