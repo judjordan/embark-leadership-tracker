@@ -129,7 +129,12 @@
     deleteNoteConfirmId: null,
     newDeveloperError: "",
     guideTab: "quad",
-    guideOpen: {}
+    guideOpen: {},
+    dashDevExpand: false,
+    dashNoteExpand: false,
+    dashNoteError: "",
+    justAddedDeveloperId: null,
+    justAddedNoteId: null
   };
 
   function isAdmin(name) { return (name || "").trim().toLowerCase() === "jud"; }
@@ -296,6 +301,7 @@
     state.deleteConfirmOpen = false;
     state.deleteError = "";
     state.deleteNoteConfirmId = null;
+    state.justAddedNoteId = null;
     render();
     subscribeNotes(id);
   };
@@ -311,6 +317,14 @@
   window.openDevelopers = function () {
     state.view = "developers";
     state.newDeveloperError = "";
+    state.justAddedDeveloperId = null;
+    render();
+  };
+  window.openDashboard = function () {
+    state.view = "dashboard";
+    state.dashDevExpand = false;
+    state.dashNoteExpand = false;
+    state.dashNoteError = "";
     render();
   };
   window.setGuideTab = function (tab) {
@@ -332,6 +346,65 @@
   window.removeDeveloper = function (id, name) {
     if (isAdmin(name) || !sb) return;
     sb.from("developers").delete().eq("id", id).then(function () {});
+  };
+
+  window.toggleDashDev = function (open) {
+    state.dashDevExpand = open;
+    render();
+    if (open) {
+      var el = document.getElementById("dash-dev-name");
+      if (el) el.focus();
+    }
+  };
+  window.toggleDashNote = function (open) {
+    state.dashNoteExpand = open;
+    state.dashNoteError = "";
+    render();
+  };
+
+  window.submitDashDeveloper = function () {
+    var el = document.getElementById("dash-dev-name");
+    var name = el ? el.value.trim() : "";
+    if (!name || !sb) return;
+    sb.from("developers").insert({ name: name }).select().single().then(function (res) {
+      if (res.error || !res.data) {
+        var existing = (state.developers || []).find(function (d) { return d.name.trim().toLowerCase() === name.toLowerCase(); });
+        state.dashDevExpand = false;
+        window.openDevelopers();
+        if (existing) { state.justAddedDeveloperId = existing.id; render(); }
+        return;
+      }
+      state.developers = (state.developers || []).concat([res.data]);
+      state.dashDevExpand = false;
+      window.openDevelopers();
+      state.justAddedDeveloperId = res.data.id;
+      render();
+    });
+  };
+
+  window.submitDashNote = function () {
+    var personSel = document.getElementById("dash-note-person");
+    var textEl = document.getElementById("dash-note-text");
+    var personId = personSel ? personSel.value : "";
+    var text = textEl ? textEl.value.trim() : "";
+    if (!personId) { state.dashNoteError = "Pick a developee first."; render(); return; }
+    if (!text) { state.dashNoteError = "Write a note first."; render(); return; }
+    if (!sb) return;
+    var author = state.identity ? state.identity.name : "Unknown";
+    var now = new Date();
+    var noteRow = { person_id: personId, author: author, note_date: localDateStr(now), body: text };
+    sb.from("notes").insert(noteRow).select().single().then(function (res) {
+      if (res.error || !res.data) {
+        state.dashNoteError = "Couldn't save. Try again.";
+        render();
+        return;
+      }
+      state.dashNoteExpand = false;
+      state.dashNoteError = "";
+      window.openPerson(personId);
+      state.justAddedNoteId = res.data.id;
+      render();
+    });
   };
 
   // ---------------- writes ----------------
@@ -372,6 +445,22 @@
   };
 
   window.onCategoryChange = function (id, el) { updatePerson(id, { category: el.value }); };
+  window.onDeveloperChange = function (id, el) { updatePerson(id, { developer: el.value }); };
+
+  function developerOptions(currentValue, includeBlank) {
+    var names = (state.developers || []).map(function (d) { return d.name; });
+    var norm = (currentValue || "").trim().toLowerCase();
+    var hasCurrent = norm && names.some(function (n) { return n.trim().toLowerCase() === norm; });
+    var opts = "";
+    if (includeBlank && !currentValue) opts += '<option value="" selected disabled>Select developer</option>';
+    opts += names.map(function (n) {
+      return '<option value="' + esc(n) + '"' + (norm && n.trim().toLowerCase() === norm ? " selected" : "") + ">" + esc(n) + "</option>";
+    }).join("");
+    if (currentValue && !hasCurrent) {
+      opts += '<option value="' + esc(currentValue) + '" selected>' + esc(currentValue) + " (not in list)</option>";
+    }
+    return opts;
+  }
 
   window.onEduToggle = function (id, key, el) {
     var person = findPerson(id);
@@ -487,7 +576,8 @@
     if (state.dbUnavailable) {
       html += '<div class="banner">Shared data isn’t available right now. Check your connection, or make sure the app’s Supabase keys are configured.</div>';
     }
-    if (state.view === "board") html += renderBoard();
+    if (state.view === "dashboard") html += renderDashboard();
+    else if (state.view === "board") html += renderBoard();
     else if (state.view === "detail") html += renderDetail();
     else if (state.view === "add") html += renderAddForm();
     else if (state.view === "guide") html += renderGuide();
@@ -496,15 +586,56 @@
   }
 
   function renderHeader() {
+    var developeesActive = state.view === "board" || state.view === "detail" || state.view === "add";
     return "" +
       '<header class="topbar"><div class="topbar-row">' +
       '<h1>Embark <span>Leaders</span></h1>' +
-      '<div class="identity-chip">' +
-      '<button class="nav-btn" onclick="openBoard()"><span aria-hidden="true">📋</span> Board</button>' +
-      '<button class="nav-btn" onclick="openGuide()"><span aria-hidden="true">📖</span> Guide</button>' +
-      '<button class="nav-btn" onclick="openDevelopers()"><span aria-hidden="true">🧑‍🤝‍🧑</span> Developers</button>' +
+      '<div class="nav-grid">' +
+      '<button class="nav-btn' + (state.view === "dashboard" ? " active" : "") + '" onclick="openDashboard()"><span aria-hidden="true">🏠</span> Dashboard</button>' +
+      '<button class="nav-btn' + (state.view === "developers" ? " active" : "") + '" onclick="openDevelopers()"><span aria-hidden="true">🧑‍🤝‍🧑</span> Developers</button>' +
+      '<button class="nav-btn' + (developeesActive ? " active" : "") + '" onclick="openBoard()"><span aria-hidden="true">📋</span> Developees</button>' +
+      '<button class="nav-btn' + (state.view === "guide" ? " active" : "") + '" onclick="openGuide()"><span aria-hidden="true">📖</span> Info</button>' +
       "</div>" +
       "</div></header>";
+  }
+
+  function renderDashboard() {
+    var devCount = state.developers === null ? "…" : state.developers.length;
+    var peopleCount = state.people === null ? "…" : state.people.length;
+    var html = '<div class="dash">';
+    html += '<div class="dash-stats">' +
+      '<div class="stat-tile"><div class="stat-num">' + devCount + '</div><div class="stat-label">Developers</div></div>' +
+      '<div class="stat-tile"><div class="stat-num">' + peopleCount + '</div><div class="stat-label">People being developed</div></div>' +
+      "</div>";
+    html += '<div class="dash-actions">';
+
+    if (state.dashDevExpand) {
+      html += '<div class="dash-expand"><label>Full name</label>' +
+        '<input id="dash-dev-name" type="text" placeholder="e.g. Alex Rivera" onkeydown="if(event.key===\'Enter\')submitDashDeveloper()">' +
+        '<div class="dash-expand-actions"><button class="btn ghost" onclick="toggleDashDev(false)">Cancel</button><button class="btn" onclick="submitDashDeveloper()">Add developer</button></div>' +
+        "</div>";
+    } else {
+      html += '<button class="dash-action-btn" onclick="toggleDashDev(true)"><span class="icon" aria-hidden="true">➕</span> Add a developer</button>';
+    }
+
+    if (state.dashNoteExpand) {
+      var people = (state.people || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+      html += '<div class="dash-expand"><label>Developee</label>' +
+        '<select id="dash-note-person">' + (people.length
+          ? people.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.name) + "</option>"; }).join("")
+          : '<option value="">No one yet</option>') +
+        "</select>" +
+        '<label>Note</label>' +
+        '<textarea id="dash-note-text" placeholder="What happened? What’s next?"></textarea>' +
+        (state.dashNoteError ? '<div class="error-text">' + esc(state.dashNoteError) + "</div>" : "") +
+        '<div class="dash-expand-actions"><button class="btn ghost" onclick="toggleDashNote(false)">Cancel</button><button class="btn" onclick="submitDashNote()">Save note</button></div>' +
+        "</div>";
+    } else {
+      html += '<button class="dash-action-btn" onclick="toggleDashNote(true)"><span class="icon" aria-hidden="true">📝</span> Add note to developee</button>';
+    }
+
+    html += "</div></div>";
+    return html;
   }
 
   function renderBoard() {
@@ -549,17 +680,22 @@
   function renderDetail() {
     var p = findPerson(state.currentPersonId);
     if (!p) {
-      return '<div class="detail"><div class="back-row"><button class="back-btn" onclick="goBoard()">← Board</button></div><div class="empty-state"><p>This person isn’t available.</p></div></div>';
+      return '<div class="detail"><div class="back-row"><button class="back-btn" onclick="goBoard()">← Developees</button></div><div class="empty-state"><p>This person isn’t available.</p></div></div>';
     }
     var edu = p.education || {};
     var idJs = qid(p.id);
 
     var html = '<div class="detail">';
-    html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Board</button></div>';
+    html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Developees</button></div>';
 
     html += '<div class="detail-head">';
     html += '<div class="field-name"><input type="text" value="' + esc(p.name) + '" onfocus="setTextFocus(true)" onblur="setTextFocus(false);onFieldBlur(' + idJs + ",'name',this)\"></div>";
-    html += '<div class="dev-row">Developer: <input type="text" value="' + esc(p.developer) + '" onfocus="setTextFocus(true)" onblur="setTextFocus(false);onFieldBlur(' + idJs + ",'developer',this)\"></div>";
+    html += "</div>";
+
+    html += '<div class="section"><div class="section-label">Developer</div>';
+    html += '<div class="field-row"><div class="field-label">Developer</div><div class="field-control chip-select-wrap"><select class="chip-select" onchange="onDeveloperChange(' + idJs + ',this)">' +
+      developerOptions(p.developer, false) +
+      "</select></div></div>";
     html += "</div>";
 
     html += '<div class="section"><div class="section-label">Track &amp; stage</div>';
@@ -599,7 +735,8 @@
       html += '<div class="notes-list">' + state.currentNotes.map(function (n) {
         var noteIdJs = qid(n.id);
         var confirming = state.deleteNoteConfirmId === n.id;
-        return '<div class="note"><div class="note-meta"><span>' + esc(n.author) + ' &middot; <span class="mono">' + fmtDate(n.date) + "</span></span>" +
+        var isNewNote = state.justAddedNoteId === n.id;
+        return '<div class="note' + (isNewNote ? " is-new" : "") + '"><div class="note-meta"><span>' + esc(n.author) + ' &middot; <span class="mono">' + fmtDate(n.date) + "</span></span>" +
           '<button class="note-delete" onclick="toggleDeleteNoteConfirm(' + noteIdJs + ')" aria-label="Delete note">✕</button></div>' +
           '<div class="note-text">' + esc(n.text) + "</div>" +
           (confirming ? '<div class="note-delete-confirm">Delete this note? <button class="btn ghost" onclick="toggleDeleteNoteConfirm(null)">Cancel</button><button class="btn danger" onclick="confirmDeleteNote(' + noteIdJs + ')">Delete</button></div>' : "") +
@@ -631,11 +768,11 @@
   function renderAddForm() {
     var defaultDeveloper = state.identity ? state.identity.name : "";
     var html = '<div class="form-wrap">';
-    html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Board</button></div>';
+    html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Developees</button></div>';
     html += '<h2 class="display" style="margin:6px 0 2px;">Add person</h2>';
 
     html += '<div class="form-field"><label>Name</label><input id="f-name" type="text" placeholder="Full name"></div>';
-    html += '<div class="form-field"><label>Developer</label><input id="f-developer" type="text" value="' + esc(defaultDeveloper) + '"><div class="hint">Who’s leading this person’s development.</div></div>';
+    html += '<div class="form-field"><label>Developer</label><div class="select-wrap"><select id="f-developer">' + developerOptions(defaultDeveloper, true) + '</select></div><div class="hint">Who’s leading this person’s development.</div></div>';
 
     html += '<div class="form-field"><label>Track (OPS/SOPS/Both)</label><div class="select-wrap"><select id="f-track">' +
       TRACKS.map(function (t) { return '<option value="' + t + '">' + t + "</option>"; }).join("") + "</select></div></div>";
@@ -714,7 +851,7 @@
 
   function renderGuide() {
     var html = '<div class="detail info-page">';
-    html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Board</button></div>';
+    html += '<div class="back-row"><button class="back-btn" onclick="openDashboard()">← Dashboard</button></div>';
     html += '<h2 class="display" style="margin:6px 0 14px;">Leadership Development Guide</h2>';
 
     html += '<div class="info-tabs">' +
@@ -749,7 +886,7 @@
     var list = state.developers || [];
     var currentName = state.identity ? state.identity.name.trim().toLowerCase() : null;
     var html = '<div class="detail">';
-    html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Board</button></div>';
+    html += '<div class="back-row"><button class="back-btn" onclick="openDashboard()">← Dashboard</button></div>';
     html += '<h2 class="display" style="margin:6px 0 4px;">Developers</h2>';
     html += '<p style="font-size:13px; color:var(--muted); margin:0 0 8px; line-height:1.5;">Tap a name to become them — that sets who your notes are stamped with and which people you can edit. Anyone can add or remove a name.</p>';
     html += '<div class="dev-list">';
@@ -758,10 +895,13 @@
     } else {
       html += list.map(function (d) {
         var isYou = currentName && d.name.trim().toLowerCase() === currentName;
-        return '<div class="devlist-row"><button class="devlist-name-btn" onclick="chooseIdentity(' + qid(d.name) + ')">' + esc(d.name) + (isYou ? ' <span class="devlist-you">(you)</span>' : "") + "</button>" +
-          (isAdmin(d.name)
-            ? '<span class="devlist-lock">Admin · can’t remove</span>'
-            : '<button class="devlist-delete" onclick="removeDeveloper(' + qid(d.id) + "," + qid(d.name) + ')">Remove</button>') +
+        var isNewDev = state.justAddedDeveloperId === d.id;
+        return '<div class="devlist-row' + (isNewDev ? " is-new" : "") + '"><button class="devlist-name-btn" onclick="chooseIdentity(' + qid(d.name) + ')">' + esc(d.name) + (isYou ? ' <span class="devlist-you">(you)</span>' : "") + "</button>" +
+          (isNewDev
+            ? '<span class="new-badge">Added</span>'
+            : isAdmin(d.name)
+              ? '<span class="devlist-lock">Admin · can’t remove</span>'
+              : '<button class="devlist-delete" onclick="removeDeveloper(' + qid(d.id) + "," + qid(d.name) + ')">Remove</button>') +
           "</div>";
       }).join("");
     }
@@ -773,7 +913,7 @@
 
   // ---------------- boot ----------------
   loadIdentity();
-  state.view = state.identity ? "board" : "developers";
+  state.view = "dashboard";
   render();
   if (!configOk) { state.dbUnavailable = true; render(); }
   else { subscribePeople(); subscribeDevelopers(); }

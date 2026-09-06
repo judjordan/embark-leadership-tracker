@@ -49,14 +49,37 @@ header.topbar{
 .topbar-row{display:flex; flex-direction:column; gap:10px;}
 .topbar-row h1{font-size:20px; font-weight:600; margin:0; letter-spacing:.2px;}
 .topbar-row h1 span{color:var(--accent);}
-.identity-chip{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted); flex-wrap:wrap;}
-.identity-chip b{color:var(--ink); font-weight:600;}
 .switch-link{background:none; border:none; color:var(--accent); font-size:12.5px; font-weight:600; cursor:pointer; padding:2px 0; text-decoration:underline; text-underline-offset:2px;}
+.nav-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px;}
 .nav-btn{
-  display:inline-flex; align-items:center; gap:5px; padding:7px 12px; border-radius:999px;
+  display:flex; align-items:center; justify-content:center; gap:5px; padding:9px 6px; border-radius:999px;
   border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:12.5px; font-weight:600; cursor:pointer;
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis; min-width:0;
 }
 .nav-btn:active{background:var(--surface-2);}
+.nav-btn.active{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+
+/* ---------- dashboard ---------- */
+.dash{padding:18px 18px 40px;}
+.dash-stats{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;}
+.stat-tile{background:var(--surface-2); border-radius:14px; padding:16px;}
+.stat-num{font-family:"Fraunces",Georgia,serif; font-size:32px; font-weight:600; line-height:1;}
+.stat-label{font-size:12.5px; color:var(--muted); margin-top:4px;}
+.dash-actions{display:flex; flex-direction:column; gap:10px;}
+.dash-action-btn{
+  width:100%; display:flex; align-items:center; gap:10px; padding:14px 16px; border-radius:14px;
+  border:1px solid var(--border); background:var(--surface); color:var(--ink); font-size:15px; font-weight:600; cursor:pointer; text-align:left;
+}
+.dash-action-btn:active{background:var(--surface-2);}
+.dash-action-btn .icon{font-size:20px;}
+.dash-expand{border:1px solid var(--border); border-radius:14px; padding:14px 16px; background:var(--surface);}
+.dash-expand label{display:block; font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin-bottom:6px;}
+.dash-expand input, .dash-expand select, .dash-expand textarea{
+  width:100%; border:1px solid var(--border); background:var(--bg); color:var(--ink); border-radius:10px;
+  padding:10px 12px; font:inherit; font-size:14.5px; margin-bottom:12px;
+}
+.dash-expand textarea{min-height:70px; resize:vertical;}
+.dash-expand-actions{display:flex; gap:8px; justify-content:flex-end;}
 
 /* ---------- generic buttons ---------- */
 .btn{
@@ -84,7 +107,9 @@ header.topbar{
 .dev-list{display:flex; flex-direction:column; margin-top:6px;}
 .devlist-row{display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--border);}
 .devlist-row:last-child{border-bottom:none;}
+.devlist-row.is-new{background:var(--accent-soft); margin:0 -12px; padding:13px 12px; border-radius:10px; border-bottom-color:transparent;}
 .devlist-name-btn{background:none; border:none; padding:0; font:inherit; font-size:15.5px; font-weight:600; color:var(--ink); cursor:pointer; text-align:left;}
+.new-badge{font-size:10.5px; font-weight:700; color:var(--accent); background:var(--surface); padding:2px 8px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em;}
 .devlist-you{color:var(--accent); font-weight:600; font-size:12px;}
 .devlist-lock{font-size:11px; color:var(--muted); font-weight:500;}
 .devlist-delete{background:none; border:none; color:var(--danger); font-size:13px; font-weight:600; cursor:pointer; padding:4px 6px;}
@@ -126,12 +151,6 @@ header.topbar{
   border:1px solid transparent; background:transparent; color:var(--ink); padding:4px 0; border-radius:8px;
 }
 .field-name input:focus{border-color:var(--border); background:var(--surface); padding:4px 8px;}
-.dev-row{display:flex; align-items:center; gap:6px; color:var(--muted); font-size:13.5px; margin-top:2px;}
-.dev-row input{
-  border:1px solid transparent; background:transparent; color:var(--muted); font-size:13.5px; font-weight:600;
-  padding:2px 0; border-radius:6px; min-width:40px;
-}
-.dev-row input:focus{border-color:var(--border); background:var(--surface); color:var(--ink); padding:2px 6px;}
 
 .section{margin-top:22px;}
 .section-label{font-size:11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:10px;}
@@ -185,6 +204,7 @@ select.chip-select{
 .note{position:relative; padding:0 0 16px 20px; border-left:2px solid var(--border); margin-left:5px;}
 .note:last-child{padding-bottom:2px;}
 .note::before{content:""; position:absolute; left:-6.5px; top:2px; width:11px; height:11px; border-radius:50%; background:var(--accent); border:2px solid var(--bg);}
+.note.is-new::before{background:var(--warn);}
 .note-meta{display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:11.5px; color:var(--muted); font-weight:600; margin-bottom:4px;}
 .note-meta .mono{font-weight:500;}
 .note-delete{background:none; border:none; color:var(--muted); font-size:13px; cursor:pointer; padding:2px 4px; line-height:1;}
