@@ -669,6 +669,49 @@
     }).join("") + "</div>";
   }
 
+  function renderQuadChart() {
+    var L = 64, R = 284, T = 16, B = 196; // plot area edges
+    var xAt = { 1: 64, 2: 119, 3: 174, 4: 229, 5: 284 };
+    var yAt = { 2: 196, 3: 136, 4: 76, 5: 16 };
+    var xMid = xAt[3], yMid = (yAt[3] + yAt[4]) / 2;
+    var g = 2; // gap between quadrants
+
+    function rect(cls, x, y, w, h) { return '<rect class="' + cls + '" x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="6"></rect>'; }
+    function tick(x1, y1, x2, y2) { return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" class="quad-axis-line"></line>'; }
+
+    var svg = '<svg class="quad-svg" viewBox="0 0 300 250" role="img" aria-label="Leadership Quad: Spiritual Depth on the vertical axis (L2 to L5), Leadership Ability on the horizontal axis (1 to 5), divided into four quadrants.">';
+
+    svg += rect("quad-r-developing", L, T, xMid - L - g, yMid - T - g);
+    svg += rect("quad-r-both", xMid + g, T, R - xMid - g, yMid - T - g);
+    svg += rect("quad-r-growing", L, yMid + g, xMid - L - g, B - yMid - g);
+    svg += rect("quad-r-leading", xMid + g, yMid + g, R - xMid - g, B - yMid - g);
+
+    svg += '<text class="quad-r-label" x="' + (L + (xMid - L) / 2) + '" y="' + (T + (yMid - T) / 2) + '" text-anchor="middle" dominant-baseline="middle">Developing</text>';
+    svg += '<text class="quad-r-label quad-r-label-both" x="' + (xMid + (R - xMid) / 2) + '" y="' + (T + (yMid - T) / 2 - 8) + '" text-anchor="middle" dominant-baseline="middle">' +
+      '<tspan x="' + (xMid + (R - xMid) / 2) + '" dy="0">Both Developing</tspan><tspan x="' + (xMid + (R - xMid) / 2) + '" dy="16">and Leading</tspan></text>';
+    svg += '<text class="quad-r-label" x="' + (L + (xMid - L) / 2) + '" y="' + (yMid + (B - yMid) / 2) + '" text-anchor="middle" dominant-baseline="middle">Growing</text>';
+    svg += '<text class="quad-r-label" x="' + (xMid + (R - xMid) / 2) + '" y="' + (yMid + (B - yMid) / 2) + '" text-anchor="middle" dominant-baseline="middle">Leading</text>';
+
+    svg += tick(L, T, L, B) + tick(L, B, R, B);
+
+    [2, 3, 4, 5].forEach(function (v) {
+      var y = yAt[v];
+      svg += tick(L - 5, y, L, y);
+      svg += '<text class="quad-tick-label" x="' + (L - 10) + '" y="' + (y + 4) + '" text-anchor="end">L' + v + "</text>";
+    });
+    [1, 2, 3, 4, 5].forEach(function (v) {
+      var x = xAt[v];
+      svg += tick(x, B, x, B + 5);
+      svg += '<text class="quad-tick-label" x="' + x + '" y="' + (B + 18) + '" text-anchor="middle">' + v + "</text>";
+    });
+
+    svg += '<text class="quad-axis-title" x="18" y="' + ((T + B) / 2) + '" text-anchor="middle" transform="rotate(-90 18 ' + ((T + B) / 2) + ')">Spiritual Depth</text>';
+    svg += '<text class="quad-axis-title" x="' + ((L + R) / 2) + '" y="238" text-anchor="middle">Leadership Ability</text>';
+
+    svg += "</svg>";
+    return svg;
+  }
+
   function renderGuide() {
     var html = '<div class="detail info-page">';
     html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Board</button></div>';
@@ -683,20 +726,7 @@
     if (state.guideTab === "quad") {
       html += '<div class="info-section">' +
         "<p>Spiritual Operations develops <b>developers</b> who grow people spiritually. Operations develops <b>leaders</b> who run the work. At level 4 or above on either axis, the person is reproducing another leader or developer.</p>" +
-        '<div class="quad-diagram">' +
-        '<div class="quad-main">' +
-        '<div class="quad-y-ticks"><span>L5</span><span>L4</span><span>L3</span><span>L2</span></div>' +
-        '<div class="quad-grid">' +
-        '<div class="quad-cell quad-developing">Developing</div>' +
-        '<div class="quad-cell quad-both">Both Developing<br>and Leading</div>' +
-        '<div class="quad-cell quad-growing">Growing</div>' +
-        '<div class="quad-cell quad-leading">Leading</div>' +
-        "</div>" +
-        "</div>" +
-        '<div class="quad-x-ticks-row"><div class="quad-y-ticks-spacer"></div><div class="quad-x-ticks"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div></div>' +
-        '<div class="quad-axis-caption quad-axis-caption-y">Spiritual Depth <span>(Spiritual Operations — Developer)</span></div>' +
-        '<div class="quad-axis-caption quad-axis-caption-x">Leadership Ability <span>(Operations — Leader)</span></div>' +
-        "</div>" +
+        renderQuadChart() +
         '<div class="quad-legends">' +
         '<div class="quad-legend"><div class="section-label">Spiritual levels</div>' +
         QUAD_SPIRITUAL_LEVELS.map(function (l) { return '<div class="quad-legend-item"><b>' + l.level + " · " + esc(l.name) + "</b><span>" + esc(l.body) + "</span></div>"; }).join("") +

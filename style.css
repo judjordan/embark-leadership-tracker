@@ -249,26 +249,16 @@ select.chip-select{
 .info-section li{margin-bottom:6px;}
 .info-section .objective{color:var(--muted);}
 
-.quad-diagram{margin:18px 0;}
-.quad-main{display:flex; gap:8px; align-items:stretch;}
-.quad-y-ticks{
-  display:flex; flex-direction:column; justify-content:space-between; align-items:flex-end;
-  font-size:11px; font-weight:700; color:var(--muted); padding:8px 0; flex:none;
-}
-.quad-grid{
-  flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:3px;
-  border-radius:12px; overflow:hidden; aspect-ratio:1.3; min-height:170px;
-}
-.quad-cell{display:flex; align-items:center; justify-content:center; text-align:center; font-weight:700; font-size:13.5px; padding:10px; line-height:1.3;}
-.quad-developing{background:var(--accent-soft); color:var(--ink); order:1;}
-.quad-both{background:var(--accent); color:var(--accent-ink); order:2;}
-.quad-growing{background:var(--off-soft); color:var(--ink); order:3;}
-.quad-leading{background:var(--warn-soft); color:var(--ink); order:4;}
-.quad-x-ticks-row{display:flex; gap:8px; margin-top:4px;}
-.quad-y-ticks-spacer{width:16px; flex:none;}
-.quad-x-ticks{flex:1; display:flex; justify-content:space-between; font-size:11px; font-weight:700; color:var(--muted); padding:0 6px;}
-.quad-axis-caption{font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-top:10px;}
-.quad-axis-caption span{display:block; font-weight:500; text-transform:none; letter-spacing:0; font-size:11px; margin-top:1px;}
+.quad-svg{width:100%; height:auto; margin:18px 0; overflow:visible;}
+.quad-r-developing{fill:var(--accent-soft);}
+.quad-r-both{fill:var(--accent);}
+.quad-r-growing{fill:var(--off-soft);}
+.quad-r-leading{fill:var(--warn-soft);}
+.quad-r-label{fill:var(--ink); font-size:12px; font-weight:700;}
+.quad-r-label-both tspan{fill:var(--accent-ink);}
+.quad-axis-line{stroke:var(--muted); stroke-width:1.5;}
+.quad-tick-label{fill:var(--muted); font-size:11px; font-weight:700;}
+.quad-axis-title{fill:var(--muted); font-size:12px; font-weight:700; letter-spacing:.04em;}
 
 .quad-legends{display:flex; flex-direction:column; gap:18px; margin-top:8px;}
 .quad-legend-item{padding:8px 0; border-bottom:1px solid var(--border); font-size:13.5px; display:flex; flex-direction:column; gap:2px;}
