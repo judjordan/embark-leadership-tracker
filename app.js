@@ -115,7 +115,7 @@
     peopleChannel: null,
     developers: null,
     developersChannel: null,
-    view: "landing",
+    view: "developers",
     boardScope: "mine",
     currentPersonId: null,
     currentNotes: null,
@@ -126,6 +126,7 @@
     peopleLoadTimedOut: false,
     deleteConfirmOpen: false,
     deleteError: "",
+    deleteNoteConfirmId: null,
     newDeveloperError: "",
     guideTab: "quad",
     guideOpen: {}
@@ -178,16 +179,6 @@
     render();
   }
   window.chooseIdentity = function (name) { if (name && name.trim()) saveIdentity(name.trim()); };
-  window.chooseIdentityOther = function () {
-    var input = document.getElementById("other-name");
-    if (input && input.value.trim()) saveIdentity(input.value.trim());
-  };
-  window.switchIdentity = function () {
-    state.identity = null;
-    try { localStorage.removeItem(IDENTITY_KEY); } catch (e) {}
-    state.view = "landing";
-    render();
-  };
 
   // ---------------- data: people ----------------
   function refetchPeople() {
@@ -304,6 +295,7 @@
     state.noteComposerOpen = false;
     state.deleteConfirmOpen = false;
     state.deleteError = "";
+    state.deleteNoteConfirmId = null;
     render();
     subscribeNotes(id);
   };
@@ -435,6 +427,21 @@
     });
   };
 
+  window.toggleDeleteNoteConfirm = function (noteId) {
+    state.deleteNoteConfirmId = (state.deleteNoteConfirmId === noteId) ? null : noteId;
+    render();
+  };
+
+  window.confirmDeleteNote = function (noteId) {
+    if (!sb) return;
+    sb.from("notes").delete().eq("id", noteId).then(function (res) {
+      if (res.error) return;
+      if (state.currentNotes) state.currentNotes = state.currentNotes.filter(function (n) { return n.id !== noteId; });
+      state.deleteNoteConfirmId = null;
+      render();
+    });
+  };
+
   window.submitAddForm = function () {
     var name = document.getElementById("f-name").value.trim();
     var developer = document.getElementById("f-developer").value.trim();
@@ -480,8 +487,7 @@
     if (state.dbUnavailable) {
       html += '<div class="banner">Shared data isn’t available right now. Check your connection, or make sure the app’s Supabase keys are configured.</div>';
     }
-    if (state.view === "landing") html += renderLanding();
-    else if (state.view === "board") html += renderBoard();
+    if (state.view === "board") html += renderBoard();
     else if (state.view === "detail") html += renderDetail();
     else if (state.view === "add") html += renderAddForm();
     else if (state.view === "guide") html += renderGuide();
@@ -490,34 +496,15 @@
   }
 
   function renderHeader() {
-    var navButtons = '<button class="nav-btn" onclick="openBoard()"><span aria-hidden="true">📋</span> Board</button>' +
-      '<button class="nav-btn" onclick="openGuide()"><span aria-hidden="true">📖</span> Guide</button>';
-    var idBit = state.identity
-      ? '<b>' + esc(state.identity.name) + '</b><button class="switch-link" onclick="switchIdentity()">Switch</button>'
-      : "";
     return "" +
       '<header class="topbar"><div class="topbar-row">' +
       '<h1>Embark <span>Leaders</span></h1>' +
-      '<div class="identity-chip">' + navButtons + idBit + "</div>" +
+      '<div class="identity-chip">' +
+      '<button class="nav-btn" onclick="openBoard()"><span aria-hidden="true">📋</span> Board</button>' +
+      '<button class="nav-btn" onclick="openGuide()"><span aria-hidden="true">📖</span> Guide</button>' +
+      '<button class="nav-btn" onclick="openDevelopers()"><span aria-hidden="true">🧑‍🤝‍🧑</span> Developers</button>' +
+      "</div>" +
       "</div></header>";
-  }
-
-  function renderLanding() {
-    var names = (state.developers || []).map(function (d) { return d.name; });
-    return "" +
-      '<div class="landing">' +
-      '<h2 class="display" style="margin:0 0 4px;">Who’s this?</h2>' +
-      '<p style="font-size:13px; color:var(--muted); margin:0 0 20px; line-height:1.5;">Picking a name sets who your notes are stamped with and which people you can edit.</p>' +
-      '<div class="gate-options">' +
-      names.map(function (n) {
-        return '<button class="gate-btn" onclick="chooseIdentity(' + qid(n) + ')">' + esc(n) + "</button>";
-      }).join("") +
-      "</div>" +
-      '<div class="gate-other">' +
-      '<input id="other-name" type="text" placeholder="Someone else’s name" onkeydown="if(event.key===\'Enter\')chooseIdentityOther()">' +
-      '<button class="btn secondary" onclick="chooseIdentityOther()">Go</button>' +
-      "</div>" +
-      "</div>";
   }
 
   function renderBoard() {
@@ -600,7 +587,7 @@
     html += '<div class="field-row"><div class="field-label">Category (Active/Explore/Dropped)</div><div class="field-control chip-select-wrap"><span class="dot" style="background:' + CATEGORY_COLOR[p.category] + '"></span><select class="chip-select" onchange="onCategoryChange(' + idJs + ',this)">' +
       CATEGORIES.map(function (c) { return '<option value="' + c + '"' + (c === p.category ? " selected" : "") + ">" + c + "</option>"; }).join("") +
       "</select></div></div>";
-    html += '<div class="field-row"><div class="field-label">Developing toward</div><div class="field-control"><input class="free-input" type="text" value="' + esc(p.developingToward || "") + '" placeholder="e.g. SERVE Team Director" onfocus="setTextFocus(true)" onblur="setTextFocus(false);onFieldBlur(' + idJs + ",'developingToward',this)\"></div></div>";
+    html += '<div class="field-block"><div class="field-label">Developing toward</div><textarea class="free-textarea" rows="2" placeholder="e.g. SERVE Team Director" onfocus="setTextFocus(true)" onblur="setTextFocus(false);onFieldBlur(' + idJs + ",'developingToward',this)\">" + esc(p.developingToward || "") + "</textarea></div>";
     html += "</div>";
 
     html += '<div class="section"><div class="section-label">Notes</div>';
@@ -610,7 +597,13 @@
       html += '<div class="notes-empty">No notes yet.</div>';
     } else {
       html += '<div class="notes-list">' + state.currentNotes.map(function (n) {
-        return '<div class="note"><div class="note-meta">' + esc(n.author) + ' &middot; <span class="mono">' + fmtDate(n.date) + "</span></div><div class=\"note-text\">" + esc(n.text) + "</div></div>";
+        var noteIdJs = qid(n.id);
+        var confirming = state.deleteNoteConfirmId === n.id;
+        return '<div class="note"><div class="note-meta"><span>' + esc(n.author) + ' &middot; <span class="mono">' + fmtDate(n.date) + "</span></span>" +
+          '<button class="note-delete" onclick="toggleDeleteNoteConfirm(' + noteIdJs + ')" aria-label="Delete note">✕</button></div>' +
+          '<div class="note-text">' + esc(n.text) + "</div>" +
+          (confirming ? '<div class="note-delete-confirm">Delete this note? <button class="btn ghost" onclick="toggleDeleteNoteConfirm(null)">Cancel</button><button class="btn danger" onclick="confirmDeleteNote(' + noteIdJs + ')">Delete</button></div>' : "") +
+          "</div>";
       }).join("") + "</div>";
     }
     if (state.noteComposerOpen) {
@@ -679,10 +672,7 @@
   function renderGuide() {
     var html = '<div class="detail info-page">';
     html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Board</button></div>';
-    html += '<div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px;">' +
-      '<h2 class="display" style="margin:6px 0 14px;">Leadership Development Guide</h2>' +
-      '<button class="switch-link" onclick="openDevelopers()" style="white-space:nowrap;">Manage developers →</button>' +
-      "</div>";
+    html += '<h2 class="display" style="margin:6px 0 14px;">Leadership Development Guide</h2>';
 
     html += '<div class="info-tabs">' +
       ["quad", "levels", "fivei"].map(function (t) {
@@ -693,15 +683,19 @@
     if (state.guideTab === "quad") {
       html += '<div class="info-section">' +
         "<p>Spiritual Operations develops <b>developers</b> who grow people spiritually. Operations develops <b>leaders</b> who run the work. At level 4 or above on either axis, the person is reproducing another leader or developer.</p>" +
-        '<div class="quad-wrap">' +
-        '<div class="quad-axis-label quad-axis-y">Spiritual Depth <span>(Spiritual Operations — Developer)</span></div>' +
+        '<div class="quad-diagram">' +
+        '<div class="quad-main">' +
+        '<div class="quad-y-ticks"><span>L5</span><span>L4</span><span>L3</span><span>L2</span></div>' +
         '<div class="quad-grid">' +
         '<div class="quad-cell quad-developing">Developing</div>' +
         '<div class="quad-cell quad-both">Both Developing<br>and Leading</div>' +
         '<div class="quad-cell quad-growing">Growing</div>' +
         '<div class="quad-cell quad-leading">Leading</div>' +
         "</div>" +
-        '<div class="quad-axis-label quad-axis-x">Leadership Ability <span>(Operations — Leader)</span></div>' +
+        "</div>" +
+        '<div class="quad-x-ticks-row"><div class="quad-y-ticks-spacer"></div><div class="quad-x-ticks"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div></div>' +
+        '<div class="quad-axis-caption quad-axis-caption-y">Spiritual Depth <span>(Spiritual Operations — Developer)</span></div>' +
+        '<div class="quad-axis-caption quad-axis-caption-x">Leadership Ability <span>(Operations — Leader)</span></div>' +
         "</div>" +
         '<div class="quad-legends">' +
         '<div class="quad-legend"><div class="section-label">Spiritual levels</div>' +
@@ -723,31 +717,33 @@
 
   function renderDevelopers() {
     var list = state.developers || [];
+    var currentName = state.identity ? state.identity.name.trim().toLowerCase() : null;
     var html = '<div class="detail">';
-    html += '<div class="back-row"><button class="back-btn" onclick="openGuide()">← Guide</button></div>';
+    html += '<div class="back-row"><button class="back-btn" onclick="goBoard()">← Board</button></div>';
     html += '<h2 class="display" style="margin:6px 0 4px;">Developers</h2>';
-    html += '<p style="font-size:13px; color:var(--muted); margin:0 0 8px; line-height:1.5;">Anyone here can be picked on the landing screen. Anyone can add or remove a name.</p>';
+    html += '<p style="font-size:13px; color:var(--muted); margin:0 0 8px; line-height:1.5;">Tap a name to become them — that sets who your notes are stamped with and which people you can edit. Anyone can add or remove a name.</p>';
     html += '<div class="dev-list">';
     if (list.length === 0) {
       html += '<div class="notes-empty">Loading…</div>';
     } else {
       html += list.map(function (d) {
-        return '<div class="dev-row"><span class="dev-name">' + esc(d.name) + "</span>" +
+        var isYou = currentName && d.name.trim().toLowerCase() === currentName;
+        return '<div class="devlist-row"><button class="devlist-name-btn" onclick="chooseIdentity(' + qid(d.name) + ')">' + esc(d.name) + (isYou ? ' <span class="devlist-you">(you)</span>' : "") + "</button>" +
           (isAdmin(d.name)
-            ? '<span class="dev-lock">Admin · can’t remove</span>'
-            : '<button class="dev-delete" onclick="removeDeveloper(' + qid(d.id) + "," + qid(d.name) + ')">Remove</button>') +
+            ? '<span class="devlist-lock">Admin · can’t remove</span>'
+            : '<button class="devlist-delete" onclick="removeDeveloper(' + qid(d.id) + "," + qid(d.name) + ')">Remove</button>') +
           "</div>";
       }).join("");
     }
     html += "</div>";
-    html += '<div class="dev-add-row"><input id="new-dev-name" type="text" placeholder="Full name" onkeydown="if(event.key===\'Enter\')addDeveloper()"><button class="btn secondary" onclick="addDeveloper()">Add</button></div>';
+    html += '<div class="devlist-add-row"><input id="new-dev-name" type="text" placeholder="Full name" onkeydown="if(event.key===\'Enter\')addDeveloper()"><button class="btn secondary" onclick="addDeveloper()">Add</button></div>';
     html += "</div>";
     return html;
   }
 
   // ---------------- boot ----------------
   loadIdentity();
-  state.view = state.identity ? "board" : "landing";
+  state.view = state.identity ? "board" : "developers";
   render();
   if (!configOk) { state.dbUnavailable = true; render(); }
   else { subscribePeople(); subscribeDevelopers(); }
