@@ -501,7 +501,8 @@
     (state.allNotes || []).forEach(function (n) {
       if (!latestByPerson[n.person_id]) latestByPerson[n.person_id] = n;
     });
-    var list = (state.people || []).map(function (p) {
+    var basePeople = (state.identity && state.identity.isAdmin) ? (state.people || []) : myPeopleForNotes();
+    var list = basePeople.map(function (p) {
       var n = latestByPerson[p.id];
       return {
         personId: p.id, personName: p.name,
