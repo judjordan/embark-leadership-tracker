@@ -136,6 +136,7 @@
     lastNoted: {},
     quickNoteOpen: false,
     quickNoteError: "",
+    allNotes: null,
     guideTab: "quad",
     guideOpen: {},
     dashDevExpand: false,
@@ -480,6 +481,44 @@
     state.dashNoteError = "";
     render();
   };
+  window.openNotesFeed = function () {
+    state.view = "notesFeed";
+    render();
+    refetchAllNotes();
+  };
+
+  function refetchAllNotes() {
+    if (!sb) return;
+    sb.from("notes").select("*").order("created_at", { ascending: false }).then(function (res) {
+      if (res.error) return;
+      state.allNotes = res.data;
+      if (state.view === "notesFeed") render();
+    });
+  }
+
+  function notesFeedList() {
+    var latestByPerson = {};
+    (state.allNotes || []).forEach(function (n) {
+      if (!latestByPerson[n.person_id]) latestByPerson[n.person_id] = n;
+    });
+    var list = (state.people || []).map(function (p) {
+      var n = latestByPerson[p.id];
+      return {
+        personId: p.id, personName: p.name,
+        hasNote: !!n,
+        date: n ? n.note_date : null,
+        text: n ? n.body : null,
+        author: n ? n.author : null
+      };
+    });
+    list.sort(function (a, b) {
+      if (a.hasNote && b.hasNote) return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0);
+      if (a.hasNote !== b.hasNote) return a.hasNote ? -1 : 1;
+      return a.personName.localeCompare(b.personName);
+    });
+    return list;
+  }
+
   window.setGuideTab = function (tab) {
     state.guideTab = tab;
     render();
@@ -757,6 +796,7 @@
     else if (state.view === "add") html += renderAddForm();
     else if (state.view === "guide") html += renderGuide();
     else if (state.view === "developers") html += renderDevelopers();
+    else if (state.view === "notesFeed") html += renderNotesFeed();
     if (state.identity) html += renderQuickNoteFab();
     app.innerHTML = html;
   }
@@ -897,6 +937,8 @@
     } else {
       html += '<button class="dash-action-btn" onclick="toggleDashNote(true)"><span class="icon" aria-hidden="true">📝</span> Add note to developee</button>';
     }
+
+    html += '<button class="dash-action-btn" onclick="openNotesFeed()"><span class="icon" aria-hidden="true">🗂️</span> Latest notes</button>';
 
     html += "</div></div>";
     return html;
@@ -1159,6 +1201,30 @@
       html += '<div class="info-section">' + accordion(FIVE_IS_INFO, state.guideOpen, "key", "name") + "</div>";
     }
 
+    html += "</div>";
+    return html;
+  }
+
+  function renderNotesFeed() {
+    var html = '<div class="detail">';
+    html += '<div class="back-row"><button class="back-btn" onclick="openDashboard()">← Dashboard</button></div>';
+    html += '<h2 class="display" style="margin:6px 0 4px;">Latest Notes</h2>';
+    html += '<p style="font-size:13px; color:var(--muted); margin:0 0 14px; line-height:1.5;">Most recent note entry for each developee.</p>';
+    if (state.people === null || state.allNotes === null) {
+      html += '<div class="notes-empty">Loading…</div>';
+    } else {
+      var list = notesFeedList();
+      if (list.length === 0) {
+        html += '<div class="notes-empty">No developees yet.</div>';
+      } else {
+        html += '<div class="notes-list">' + list.map(function (item) {
+          return '<div class="note" onclick="openPerson(' + qid(item.personId) + ')" style="cursor:pointer;">' +
+            '<div class="note-meta"><span><b>' + esc(item.personName) + "</b>" + (item.hasNote ? " · " + esc(item.author) + ' · <span class="mono">' + fmtDate(item.date) + "</span>" : "") + "</span></div>" +
+            '<div class="note-text">' + (item.hasNote ? esc(item.text) : '<span style="color:var(--muted);">No notes yet.</span>') + "</div>" +
+            "</div>";
+        }).join("") + "</div>";
+      }
+    }
     html += "</div>";
     return html;
   }
