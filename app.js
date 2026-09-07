@@ -862,7 +862,7 @@
       '<div class="stat-tile"><div class="stat-num">' + devCount + '</div><div class="stat-label">Developers</div></div>' +
       '<div class="stat-tile"><div class="stat-num">' + opsCount + '</div><div class="stat-label">OPS Developees</div></div>' +
       '<div class="stat-tile"><div class="stat-num">' + sopsCount + '</div><div class="stat-label">SOPS Developees</div></div>' +
-      '<div class="stat-tile"><div class="stat-num">' + bothCount + '</div><div class="stat-label">Both</div></div>' +
+      '<div class="stat-tile"><div class="stat-num">' + bothCount + '</div><div class="stat-label">Both OPS and SOPS</div></div>' +
       '<div class="stat-tile"><div class="stat-num">' + investigateCount + '</div><div class="stat-label">Number of Investigates</div></div>' +
       '<div class="stat-tile"><div class="stat-num">' + integrateCount + '</div><div class="stat-label">Number of Integrates</div></div>' +
       "</div>";
