@@ -22,7 +22,6 @@
     Integrate: "var(--stage-integrate)", Install: "var(--stage-install)", Invest: "var(--stage-invest)"
   };
   var EDU_FIELDS = [["sl1", "SL1.0"], ["freedom", "Freedom"], ["theology", "Theology"], ["htgg", "HTGG"]];
-  var IDENTITY_KEY = "elt_identity_v1";
 
   var SPIRITUAL_LEVELS = [
     { level: "L1", name: "Not Interested", body:
@@ -110,12 +109,17 @@
 
   var state = {
     identity: null,
+    authChecked: false,
+    authMode: "landing",
+    authName: "",
+    authError: "",
+    signingUp: false,
     dbUnavailable: !configOk,
     people: null,
     peopleChannel: null,
     developers: null,
     developersChannel: null,
-    view: "developers",
+    view: "auth",
     boardScope: "mine",
     currentPersonId: null,
     currentNotes: null,
@@ -130,14 +134,11 @@
     newDeveloperError: "",
     guideTab: "quad",
     guideOpen: {},
-    dashDevExpand: false,
     dashNoteExpand: false,
     dashNoteError: "",
     justAddedDeveloperId: null,
     justAddedNoteId: null
   };
-
-  function isAdmin(name) { return (name || "").trim().toLowerCase() === "jud"; }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c];
@@ -168,22 +169,134 @@
     return { id: row.id, author: row.author, date: row.note_date, text: row.body, createdAt: row.created_at };
   }
 
-  // ---------------- identity ----------------
-  function loadIdentity() {
-    try {
-      var raw = localStorage.getItem(IDENTITY_KEY);
-      if (raw) state.identity = JSON.parse(raw);
-    } catch (e) {}
+  // ---------------- identity (real Supabase Auth) ----------------
+  function slugEmail(name) {
+    var slug = (name || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    return slug + "@embark-leaders.internal";
   }
-  function saveIdentity(name) {
-    state.identity = { name: name };
-    try { localStorage.setItem(IDENTITY_KEY, JSON.stringify(state.identity)); } catch (e) {}
-    ensureDeveloper(name);
-    state.view = "board";
-    state.boardScope = "mine";
+
+  function handleAuthChange(session) {
+    if (state.signingUp) return;
+    if (!session) {
+      state.identity = null;
+      state.authChecked = true;
+      state.view = "auth";
+      render();
+      return;
+    }
+    sb.from("developers").select("*").eq("user_id", session.user.id).maybeSingle().then(function (res) {
+      if (state.signingUp) return;
+      if (res.error || !res.data) {
+        state.identity = null;
+        state.authChecked = true;
+        state.authMode = "landing";
+        state.view = "auth";
+        render();
+        return;
+      }
+      state.identity = { name: res.data.name, isAdmin: res.data.is_admin, devId: res.data.id };
+      state.authChecked = true;
+      if (state.view === "auth") state.view = "dashboard";
+      render();
+      subscribePeople();
+      subscribeDevelopers();
+    });
+  }
+
+  window.selectAuthName = function (name) {
+    name = (name || "").trim();
+    if (!name) return;
+    state.authError = "";
+    var existing = (state.developers || []).find(function (d) { return d.name.trim().toLowerCase() === name.toLowerCase(); });
+    if (existing) {
+      state.authName = existing.name;
+      state.authMode = existing.user_id ? "signin" : "signup";
+    } else {
+      state.authName = name;
+      state.authMode = "signup";
+    }
     render();
-  }
-  window.chooseIdentity = function (name) { if (name && name.trim()) saveIdentity(name.trim()); };
+  };
+
+  window.submitAuthOther = function () {
+    var el = document.getElementById("auth-other-name");
+    var name = el ? el.value.trim() : "";
+    if (name) window.selectAuthName(name);
+  };
+
+  window.authBack = function () {
+    state.authMode = "landing";
+    state.authName = "";
+    state.authError = "";
+    render();
+  };
+
+  window.submitSignIn = function () {
+    var el = document.getElementById("auth-pin");
+    var pin = el ? el.value : "";
+    if (!/^\d{6}$/.test(pin)) { state.authError = "Enter your 6-digit code."; render(); return; }
+    if (!sb) return;
+    state.authError = "";
+    sb.auth.signInWithPassword({ email: slugEmail(state.authName), password: pin }).then(function (res) {
+      if (res.error) {
+        state.authError = "That code doesn’t look right. Try again, or ask Jud to reset it.";
+        render();
+      }
+    });
+  };
+
+  window.submitSignUp = function () {
+    var pinEl = document.getElementById("auth-pin-new");
+    var confirmEl = document.getElementById("auth-pin-confirm");
+    var pin = pinEl ? pinEl.value : "";
+    var confirmPin = confirmEl ? confirmEl.value : "";
+    if (!/^\d{6}$/.test(pin)) { state.authError = "Code must be exactly 6 digits."; render(); return; }
+    if (pin !== confirmPin) { state.authError = "Codes don’t match."; render(); return; }
+    if (!sb) return;
+    state.authError = "";
+    state.signingUp = true;
+    var name = state.authName;
+    sb.auth.signUp({ email: slugEmail(name), password: pin }).then(function (res) {
+      if (res.error || !res.data || !res.data.user) {
+        state.signingUp = false;
+        state.authError = "Couldn’t create the account. Try again.";
+        render();
+        return;
+      }
+      var uid = res.data.user.id;
+      var existing = (state.developers || []).find(function (d) {
+        return d.name.trim().toLowerCase() === name.trim().toLowerCase() && !d.user_id;
+      });
+      var op = existing
+        ? sb.from("developers").update({ user_id: uid }).eq("id", existing.id).select().single()
+        : sb.from("developers").insert({ name: name, user_id: uid, is_admin: false }).select().single();
+      op.then(function (res2) {
+        state.signingUp = false;
+        if (res2.error || !res2.data) {
+          state.authError = "Account created, but couldn’t finish setup. Try signing in.";
+          render();
+          return;
+        }
+        state.developers = (state.developers || []).filter(function (d) { return d.id !== res2.data.id; }).concat([res2.data]);
+        state.identity = { name: res2.data.name, isAdmin: res2.data.is_admin, devId: res2.data.id };
+        state.view = "dashboard";
+        render();
+        subscribePeople();
+        subscribeDevelopers();
+      });
+    });
+  };
+
+  window.signOut = function () {
+    if (!sb) return;
+    sb.auth.signOut().then(function () {
+      state.view = "auth";
+      state.authMode = "landing";
+      state.authName = "";
+      state.authError = "";
+      render();
+    });
+  };
 
   // ---------------- data: people ----------------
   function refetchPeople() {
@@ -271,8 +384,16 @@
     var list = state.people || [];
     if (state.boardScope === "all") return list;
     if (!state.identity) return [];
-    if (isAdmin(state.identity.name)) return list;
+    if (state.identity.isAdmin) return list;
     return list.filter(function (p) { return (p.developer || "").trim().toLowerCase() === state.identity.name.trim().toLowerCase(); });
+  }
+
+  function myPeopleForNotes() {
+    var list = state.people || [];
+    if (!state.identity) return [];
+    if (state.identity.isAdmin) return list;
+    var name = state.identity.name.trim().toLowerCase();
+    return list.filter(function (p) { return (p.developer || "").trim().toLowerCase() === name; });
   }
 
   function findPerson(id) { return (state.people || []).find(function (p) { return p.id === id; }); }
@@ -322,7 +443,6 @@
   };
   window.openDashboard = function () {
     state.view = "dashboard";
-    state.dashDevExpand = false;
     state.dashNoteExpand = false;
     state.dashNoteError = "";
     render();
@@ -336,50 +456,17 @@
     render();
   };
 
-  window.addDeveloper = function () {
-    var el = document.getElementById("new-dev-name");
-    var name = el ? el.value.trim() : "";
-    if (!name) return;
-    ensureDeveloper(name);
-    if (el) el.value = "";
-  };
-  window.removeDeveloper = function (id, name) {
-    if (isAdmin(name) || !sb) return;
+  window.removeDeveloper = function (id) {
+    if (!sb || !state.identity || !state.identity.isAdmin) return;
+    var d = (state.developers || []).find(function (x) { return x.id === id; });
+    if (!d || d.is_admin) return;
     sb.from("developers").delete().eq("id", id).then(function () {});
   };
 
-  window.toggleDashDev = function (open) {
-    state.dashDevExpand = open;
-    render();
-    if (open) {
-      var el = document.getElementById("dash-dev-name");
-      if (el) el.focus();
-    }
-  };
   window.toggleDashNote = function (open) {
     state.dashNoteExpand = open;
     state.dashNoteError = "";
     render();
-  };
-
-  window.submitDashDeveloper = function () {
-    var el = document.getElementById("dash-dev-name");
-    var name = el ? el.value.trim() : "";
-    if (!name || !sb) return;
-    sb.from("developers").insert({ name: name }).select().single().then(function (res) {
-      if (res.error || !res.data) {
-        var existing = (state.developers || []).find(function (d) { return d.name.trim().toLowerCase() === name.toLowerCase(); });
-        state.dashDevExpand = false;
-        window.openDevelopers();
-        if (existing) { state.justAddedDeveloperId = existing.id; render(); }
-        return;
-      }
-      state.developers = (state.developers || []).concat([res.data]);
-      state.dashDevExpand = false;
-      window.openDevelopers();
-      state.justAddedDeveloperId = res.data.id;
-      render();
-    });
   };
 
   window.submitDashNote = function () {
@@ -573,6 +660,7 @@
   // ---------------- render ----------------
   function render() {
     var app = document.getElementById("app");
+    if (state.view === "auth") { app.innerHTML = renderAuthGate(); return; }
     var html = renderHeader();
     if (state.dbUnavailable) {
       html += '<div class="banner">Shared data isn’t available right now. Check your connection, or make sure the app’s Supabase keys are configured.</div>';
@@ -584,6 +672,58 @@
     else if (state.view === "guide") html += renderGuide();
     else if (state.view === "developers") html += renderDevelopers();
     app.innerHTML = html;
+  }
+
+  function renderAuthGate() {
+    if (!state.authChecked) return '<div class="auth-wrap"><p class="sub">Loading…</p></div>';
+    if (state.authMode === "signin") return renderAuthSignIn();
+    if (state.authMode === "signup") return renderAuthSignUp();
+    return renderAuthLanding();
+  }
+
+  function renderAuthLanding() {
+    var names = (state.developers || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var html = '<div class="auth-wrap">';
+    html += '<h2 class="display">Who’s this?</h2>';
+    html += '<p class="sub">Pick your name to sign in, or add yourself if you’re new.</p>';
+    html += '<div class="gate-options">';
+    html += names.map(function (d) {
+      return '<button class="gate-btn" onclick="selectAuthName(' + qid(d.name) + ')">' + esc(d.name) + "</button>";
+    }).join("");
+    html += "</div>";
+    html += '<div class="gate-other"><input id="auth-other-name" type="text" placeholder="Someone else’s name" onkeydown="if(event.key===\'Enter\')submitAuthOther()">' +
+      '<button class="btn secondary" onclick="submitAuthOther()">Go</button></div>';
+    if (state.authError) html += '<div class="error-text">' + esc(state.authError) + "</div>";
+    html += "</div>";
+    return html;
+  }
+
+  function renderAuthSignIn() {
+    var html = '<div class="auth-wrap">';
+    html += '<button class="back-link" onclick="authBack()">← Not you?</button>';
+    html += '<h2 class="display">Hi, ' + esc(state.authName) + "</h2>";
+    html += '<p class="sub">Enter your 6-digit code.</p>';
+    html += '<div class="pin-label">Code</div>';
+    html += '<input id="auth-pin" class="pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" oninput="this.value=this.value.replace(/\\D/g,&quot;&quot;).slice(0,6)" onkeydown="if(event.key===\'Enter\')submitSignIn()">';
+    if (state.authError) html += '<div class="error-text">' + esc(state.authError) + "</div>";
+    html += '<button class="btn block" onclick="submitSignIn()">Sign in</button>';
+    html += "</div>";
+    return html;
+  }
+
+  function renderAuthSignUp() {
+    var html = '<div class="auth-wrap">';
+    html += '<button class="back-link" onclick="authBack()">← Not you?</button>';
+    html += '<h2 class="display">Welcome, ' + esc(state.authName) + "</h2>";
+    html += '<p class="sub">Set a 6-digit code you’ll use to sign in from now on. Write it down somewhere — if you forget it, Jud will need to reset it for you.</p>';
+    html += '<div class="pin-label">Choose a code</div>';
+    html += '<input id="auth-pin-new" class="pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" oninput="this.value=this.value.replace(/\\D/g,&quot;&quot;).slice(0,6)">';
+    html += '<div class="pin-label">Confirm code</div>';
+    html += '<input id="auth-pin-confirm" class="pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" oninput="this.value=this.value.replace(/\\D/g,&quot;&quot;).slice(0,6)" onkeydown="if(event.key===\'Enter\')submitSignUp()">';
+    if (state.authError) html += '<div class="error-text">' + esc(state.authError) + "</div>";
+    html += '<button class="btn block" onclick="submitSignUp()">Create account</button>';
+    html += "</div>";
+    return html;
   }
 
   function renderHeader() {
@@ -610,17 +750,8 @@
       "</div>";
     html += '<div class="dash-actions">';
 
-    if (state.dashDevExpand) {
-      html += '<div class="dash-expand"><label>Full name</label>' +
-        '<input id="dash-dev-name" type="text" placeholder="e.g. Alex Rivera" onkeydown="if(event.key===\'Enter\')submitDashDeveloper()">' +
-        '<div class="dash-expand-actions"><button class="btn ghost" onclick="toggleDashDev(false)">Cancel</button><button class="btn" onclick="submitDashDeveloper()">Add developer</button></div>' +
-        "</div>";
-    } else {
-      html += '<button class="dash-action-btn" onclick="toggleDashDev(true)"><span class="icon" aria-hidden="true">➕</span> Add a developer</button>';
-    }
-
     if (state.dashNoteExpand) {
-      var people = (state.people || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+      var people = myPeopleForNotes().slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
       html += '<div class="dash-expand"><label>Developee</label>' +
         '<select id="dash-note-person">' + (people.length
           ? people.map(function (p) { return '<option value="' + esc(p.id) + '">' + esc(p.name) + "</option>"; }).join("")
@@ -727,8 +858,12 @@
     html += '<div class="field-block"><div class="field-label">Developing toward</div><textarea class="free-textarea" rows="2" placeholder="e.g. SERVE Team Director" onfocus="setTextFocus(true)" onblur="setTextFocus(false);onFieldBlur(' + idJs + ",'developingToward',this)\">" + esc(p.developingToward || "") + "</textarea></div>";
     html += "</div>";
 
+    var canSeeNotes = !!(state.identity && (state.identity.isAdmin || (p.developer || "").trim().toLowerCase() === state.identity.name.trim().toLowerCase()));
+
     html += '<div class="section"><div class="section-label">Notes</div>';
-    if (state.currentNotes === null) {
+    if (!canSeeNotes) {
+      html += '<div class="notes-locked"><span class="icon" aria-hidden="true">🔒</span><p>Notes are private.</p></div>';
+    } else if (state.currentNotes === null) {
       html += '<div class="notes-empty">Loading notes…</div>';
     } else if (state.currentNotes.length === 0) {
       html += '<div class="notes-empty">No notes yet.</div>';
@@ -744,11 +879,13 @@
           "</div>";
       }).join("") + "</div>";
     }
-    if (state.noteComposerOpen) {
-      html += '<div class="note-composer"><textarea id="note-textarea" placeholder="What happened? What’s next?" onfocus="setTextFocus(true)" onblur="setTextFocus(false)"></textarea>' +
-        '<div class="composer-actions"><button class="btn ghost" onclick="toggleNoteComposer(false)">Cancel</button><button class="btn" onclick="saveNote(' + idJs + ')">Save note</button></div></div>';
-    } else {
-      html += '<button class="add-note-btn" onclick="toggleNoteComposer(true)">+ Add note</button>';
+    if (canSeeNotes) {
+      if (state.noteComposerOpen) {
+        html += '<div class="note-composer"><textarea id="note-textarea" placeholder="What happened? What’s next?" onfocus="setTextFocus(true)" onblur="setTextFocus(false)"></textarea>' +
+          '<div class="composer-actions"><button class="btn ghost" onclick="toggleNoteComposer(false)">Cancel</button><button class="btn" onclick="saveNote(' + idJs + ')">Save note</button></div></div>';
+      } else {
+        html += '<button class="add-note-btn" onclick="toggleNoteComposer(true)">+ Add note</button>';
+      }
     }
     html += "</div>";
 
@@ -889,39 +1026,50 @@
 
   function renderDevelopers() {
     var list = state.developers || [];
-    var currentName = state.identity ? state.identity.name.trim().toLowerCase() : null;
     var html = '<div class="detail">';
     html += '<div class="back-row"><button class="back-btn" onclick="openDashboard()">← Dashboard</button></div>';
     html += '<h2 class="display" style="margin:6px 0 4px;">Developers</h2>';
-    html += '<p style="font-size:13px; color:var(--muted); margin:0 0 8px; line-height:1.5;">Tap a name to become them — that sets who your notes are stamped with and which people you can edit. Anyone can add or remove a name.</p>';
+    html += '<p style="font-size:13px; color:var(--muted); margin:0 0 4px; line-height:1.5;">' +
+      (state.identity ? "Signed in as <b>" + esc(state.identity.name) + "</b>" + (state.identity.isAdmin ? " (admin)" : "") + "." : "") +
+      "</p>";
+    html += '<button class="back-link" style="padding:0 0 14px;" onclick="signOut()">Sign out</button>';
     html += '<div class="dev-list">';
     if (list.length === 0) {
       html += '<div class="notes-empty">Loading…</div>';
     } else {
       html += list.map(function (d) {
-        var isYou = currentName && d.name.trim().toLowerCase() === currentName;
+        var isYou = !!(state.identity && d.id === state.identity.devId);
         var isNewDev = state.justAddedDeveloperId === d.id;
-        return '<div class="devlist-row' + (isNewDev ? " is-new" : "") + '"><button class="devlist-name-btn" onclick="chooseIdentity(' + qid(d.name) + ')">' + esc(d.name) + (isYou ? ' <span class="devlist-you">(you)</span>' : "") + "</button>" +
+        var canRemove = !!(state.identity && state.identity.isAdmin) && !d.is_admin;
+        return '<div class="devlist-row' + (isNewDev ? " is-new" : "") + '"><span class="devlist-name-btn">' + esc(d.name) + (isYou ? ' <span class="devlist-you">(you)</span>' : "") + "</span>" +
           (isNewDev
             ? '<span class="new-badge">Added</span>'
-            : isAdmin(d.name)
+            : d.is_admin
               ? '<span class="devlist-lock">Admin · can’t remove</span>'
-              : '<button class="devlist-delete" onclick="removeDeveloper(' + qid(d.id) + "," + qid(d.name) + ')">Remove</button>') +
+              : canRemove
+                ? '<button class="devlist-delete" onclick="removeDeveloper(' + qid(d.id) + ')">Remove</button>'
+                : "") +
           "</div>";
       }).join("");
     }
     html += "</div>";
-    html += '<div class="devlist-add-row"><input id="new-dev-name" type="text" placeholder="Full name" onkeydown="if(event.key===\'Enter\')addDeveloper()"><button class="btn secondary" onclick="addDeveloper()">Add</button></div>';
+    html += '<p style="font-size:12.5px; color:var(--muted); margin-top:16px; line-height:1.5;">New developers create their own account from the sign-in screen — there’s no name to add here ahead of time.</p>';
     html += "</div>";
     return html;
   }
 
   // ---------------- boot ----------------
-  loadIdentity();
-  state.view = "dashboard";
   render();
-  if (!configOk) { state.dbUnavailable = true; render(); }
-  else { subscribePeople(); subscribeDevelopers(); }
+  if (!configOk) {
+    state.dbUnavailable = true;
+    state.authChecked = true;
+    render();
+  } else {
+    subscribePeople();
+    subscribeDevelopers();
+    sb.auth.onAuthStateChange(function (event, session) { handleAuthChange(session); });
+    sb.auth.getSession().then(function (res) { handleAuthChange(res.data.session); });
+  }
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
