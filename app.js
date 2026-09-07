@@ -134,6 +134,8 @@
     newDeveloperError: "",
     guideTab: "quad",
     guideOpen: {},
+    dashDevExpand: false,
+    dashDevError: "",
     dashNoteExpand: false,
     dashNoteError: "",
     justAddedDeveloperId: null,
@@ -443,6 +445,8 @@
   };
   window.openDashboard = function () {
     state.view = "dashboard";
+    state.dashDevExpand = false;
+    state.dashDevError = "";
     state.dashNoteExpand = false;
     state.dashNoteError = "";
     render();
@@ -461,6 +465,36 @@
     var d = (state.developers || []).find(function (x) { return x.id === id; });
     if (!d || d.is_admin) return;
     sb.from("developers").delete().eq("id", id).then(function () {});
+  };
+
+  window.toggleDashDev = function (open) {
+    state.dashDevExpand = open;
+    state.dashDevError = "";
+    render();
+    if (open) {
+      var el = document.getElementById("dash-dev-name");
+      if (el) el.focus();
+    }
+  };
+
+  window.submitDashDeveloper = function () {
+    var el = document.getElementById("dash-dev-name");
+    var name = el ? el.value.trim() : "";
+    if (!name) { state.dashDevError = "Enter a name first."; render(); return; }
+    if (!sb) return;
+    state.dashDevError = "";
+    sb.from("developers").insert({ name: name, user_id: null, is_admin: false }).select().single().then(function (res) {
+      if (res.error || !res.data) {
+        state.dashDevError = "Couldn’t add. Check the name isn’t already on the list.";
+        render();
+        return;
+      }
+      state.developers = (state.developers || []).concat([res.data]);
+      state.dashDevExpand = false;
+      window.openDevelopers();
+      state.justAddedDeveloperId = res.data.id;
+      render();
+    });
   };
 
   window.toggleDashNote = function (open) {
@@ -715,8 +749,8 @@
     var html = '<div class="auth-wrap">';
     html += '<button class="back-link" onclick="authBack()">← Not you?</button>';
     html += '<h2 class="display">Welcome, ' + esc(state.authName) + "</h2>";
-    html += '<p class="sub">Set a 6-digit code you’ll use to sign in from now on. Write it down somewhere — if you forget it, Jud will need to reset it for you.</p>';
-    html += '<div class="pin-label">Choose a code</div>';
+    html += '<p class="sub">Set a 6-digit numerical code you’ll use to sign in from now on. Numbers only, no letters. Write it down somewhere — if you forget it, Jud will need to reset it for you.</p>';
+    html += '<div class="pin-label">Choose a 6-digit numerical code</div>';
     html += '<input id="auth-pin-new" class="pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" oninput="this.value=this.value.replace(/\\D/g,&quot;&quot;).slice(0,6)">';
     html += '<div class="pin-label">Confirm code</div>';
     html += '<input id="auth-pin-confirm" class="pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="••••••" oninput="this.value=this.value.replace(/\\D/g,&quot;&quot;).slice(0,6)" onkeydown="if(event.key===\'Enter\')submitSignUp()">';
@@ -730,7 +764,7 @@
     var developeesActive = state.view === "board" || state.view === "detail" || state.view === "add";
     return "" +
       '<header class="topbar"><div class="topbar-row">' +
-      '<h1>Embark <span>Leaders</span></h1>' +
+      '<h1>Embark <span>Leadership Development Tracking</span></h1>' +
       '<div class="nav-grid">' +
       '<button class="nav-btn' + (state.view === "dashboard" ? " active" : "") + '" onclick="openDashboard()"><span aria-hidden="true">🏠</span> Dashboard</button>' +
       '<button class="nav-btn' + (state.view === "developers" ? " active" : "") + '" onclick="openDevelopers()"><span aria-hidden="true">🧑‍🤝‍🧑</span> Developers</button>' +
@@ -742,13 +776,29 @@
 
   function renderDashboard() {
     var devCount = state.developers === null ? "…" : state.developers.length;
-    var peopleCount = state.people === null ? "…" : state.people.length;
+    var opsCount = state.people === null ? "…" : state.people.filter(function (p) { return p.track === "Ops" || p.track === "Both"; }).length;
+    var sopsCount = state.people === null ? "…" : state.people.filter(function (p) { return p.track === "SOPS" || p.track === "Both"; }).length;
     var html = '<div class="dash">';
     html += '<div class="dash-stats">' +
       '<div class="stat-tile"><div class="stat-num">' + devCount + '</div><div class="stat-label">Developers</div></div>' +
-      '<div class="stat-tile"><div class="stat-num">' + peopleCount + '</div><div class="stat-label">People being developed</div></div>' +
+      '<div class="stat-tile"><div class="stat-num">' + opsCount + '</div><div class="stat-label">OPS developees</div></div>' +
+      '<div class="stat-tile"><div class="stat-num">' + sopsCount + '</div><div class="stat-label">SOPS developees</div></div>' +
       "</div>";
     html += '<div class="dash-actions">';
+
+    if (state.identity && state.identity.isAdmin) {
+      if (state.dashDevExpand) {
+        html += '<div class="dash-expand"><label>Full name</label>' +
+          '<input id="dash-dev-name" type="text" placeholder="e.g. Alex Rivera" onkeydown="if(event.key===\'Enter\')submitDashDeveloper()">' +
+          (state.dashDevError ? '<div class="error-text">' + esc(state.dashDevError) + "</div>" : "") +
+          '<div class="dash-expand-actions"><button class="btn ghost" onclick="toggleDashDev(false)">Cancel</button><button class="btn" onclick="submitDashDeveloper()">Add developer</button></div>' +
+          "</div>";
+      } else {
+        html += '<button class="dash-action-btn" onclick="toggleDashDev(true)"><span class="icon" aria-hidden="true">➕</span> Add a developer<span class="admin-tag">Admin</span></button>';
+      }
+    }
+
+    html += '<button class="dash-action-btn" onclick="openAddForm()"><span class="icon" aria-hidden="true">🧑</span> Add a developee</button>';
 
     if (state.dashNoteExpand) {
       var people = myPeopleForNotes().slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
