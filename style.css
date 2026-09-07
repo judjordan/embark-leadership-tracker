@@ -47,7 +47,7 @@ header.topbar{
   padding:14px 18px 12px;
 }
 .topbar-row{display:flex; flex-direction:column; gap:10px;}
-.topbar-row h1{font-size:20px; font-weight:600; margin:0; letter-spacing:.2px;}
+.topbar-row h1{font-size:20px; font-weight:600; margin:0; letter-spacing:.2px; text-align:center;}
 .topbar-row h1 span{color:var(--accent);}
 .switch-link{background:none; border:none; color:var(--accent); font-size:12.5px; font-weight:600; cursor:pointer; padding:2px 0; text-decoration:underline; text-underline-offset:2px;}
 .nav-grid{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px;}
@@ -61,6 +61,8 @@ header.topbar{
 
 /* ---------- dashboard ---------- */
 .dash{padding:18px 18px 40px;}
+.header-greeting{font-size:18px; font-weight:600; color:var(--ink); padding:14px 18px 0; text-align:center;}
+.header-signout{background:none; border:none; padding:0; font:inherit; font-size:15px; font-weight:600; color:var(--accent); cursor:pointer; text-decoration:underline; text-underline-offset:2px;}
 .dash-stats{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:20px;}
 .stat-tile{background:var(--surface-2); border-radius:14px; padding:14px 10px;}
 .stat-num{font-family:"Fraunces",Georgia,serif; font-size:28px; font-weight:600; line-height:1;}
@@ -102,14 +104,26 @@ header.topbar{
   box-shadow:var(--shadow); cursor:pointer; display:flex; align-items:center; justify-content:center;
 }
 .fab:active{transform:scale(.94);}
+.fab-note{left:20px; right:auto;}
+.quick-note-overlay{position:fixed; inset:0; z-index:40; background:rgba(33,30,26,.45); display:flex; align-items:flex-end; justify-content:center; padding:16px;}
+.quick-note-modal{width:100%; max-width:420px; background:var(--surface); border-radius:16px; padding:18px 18px calc(18px + env(safe-area-inset-bottom)); box-shadow:var(--shadow);}
+.quick-note-modal .qn-label{display:block; font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:12px 0 6px;}
+.quick-note-modal .qn-label:first-of-type{margin-top:10px;}
+.quick-note-modal select, .quick-note-modal textarea{
+  width:100%; border:1px solid var(--border); background:var(--bg); color:var(--ink); border-radius:10px;
+  padding:10px 12px; font:inherit; font-size:14.5px;
+}
+.quick-note-modal textarea{min-height:80px; resize:vertical;}
 
 
 /* ---------- developers management ---------- */
 .dev-list{display:flex; flex-direction:column; margin-top:6px;}
-.devlist-row{display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--border);}
+.devlist-row{display:flex; flex-direction:column; gap:4px; padding:13px 0; border-bottom:1px solid var(--border);}
 .devlist-row:last-child{border-bottom:none;}
 .devlist-row.is-new{background:var(--accent-soft); margin:0 -12px; padding:13px 12px; border-radius:10px; border-bottom-color:transparent;}
-.devlist-name-btn{font-size:15.5px; font-weight:600; color:var(--ink);}
+.devlist-row-top{display:flex; align-items:center; justify-content:space-between;}
+.devlist-lastnoted{font-size:11.5px; color:var(--muted);}
+.devlist-name-btn{background:none; border:none; padding:0; font:inherit; font-size:15.5px; font-weight:600; color:var(--ink); cursor:pointer; text-align:left;}
 .new-badge{font-size:10.5px; font-weight:700; color:var(--accent); background:var(--surface); padding:2px 8px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em;}
 .devlist-you{color:var(--accent); font-weight:600; font-size:12px;}
 .devlist-lock{font-size:11px; color:var(--muted); font-weight:500;}
